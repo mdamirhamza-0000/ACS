@@ -84,6 +84,11 @@ public class WebViewSetup {
             return;
         }
 
+        if (context instanceof android.app.Activity) {
+            ((LeanWebView) webview).addJavascriptInterface(
+                    new AvrokNativeBridge((android.app.Activity) context, (LeanWebView) webview), "AvrokNative");
+        }
+
         AppConfig appConfig = AppConfig.getInstance(context);
 
         LeanWebView wv = (LeanWebView)webview;

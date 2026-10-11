@@ -39,6 +39,20 @@
     if(btn) { btn.disabled = true; btn.innerHTML = '<span class="google-spinner"></span> Redirecting to Google...'; }
     if(errorEl) errorEl.textContent = '';
     try {
+      // Preferred: our own native Google sign-in (Android app built from this repo).
+      if (window.AvrokNative && typeof window.AvrokNative.googleSignIn === 'function') {
+        const WEB_CLIENT_ID = '364101274463-kajf4cimrpj2amsodl61kg1m2mnjoue5.apps.googleusercontent.com';
+        const nativeResult = await new Promise((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('Google login timed out. Please try again.')), 120000);
+          window.__avrokGoogleResult = (data) => { clearTimeout(timer); delete window.__avrokGoogleResult; resolve(data); };
+          try { window.AvrokNative.googleSignIn(WEB_CLIENT_ID); } catch(e) { clearTimeout(timer); reject(e); }
+        });
+        if (!nativeResult || !nativeResult.success || !nativeResult.idToken) {
+          throw new Error((nativeResult && nativeResult.error) || 'Google login was cancelled or failed.');
+        }
+        await signInWithCredential(fbAuth, GoogleAuthProvider.credential(nativeResult.idToken));
+        return;
+      }
       const getMedianGoogle = () =>
         (window.median && window.median.socialLogin && window.median.socialLogin.google) ||
         (window.gonative && window.gonative.socialLogin && window.gonative.socialLogin.google);
