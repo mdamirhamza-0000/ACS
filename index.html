@@ -227,8 +227,32 @@
     }
   };
 
+  // ---------------- MENU LOGIN CARD + DRAWER LOGIN BUTTON ----------------
+  window.updateDrawerLoginBtn = function(){
+    const b = document.getElementById('drawerLoginBtn');
+    if(b) b.style.display = window.currentFirebaseUser ? 'none' : 'flex';
+  };
+  window.openLoginCard = function(){
+    if(typeof window.closeDrawer === 'function') window.closeDrawer();
+    const ls = document.getElementById('loginScreen');
+    const cb = document.getElementById('loginCloseBtn');
+    if(ls) ls.style.display = 'flex';
+    if(cb) cb.style.display = 'flex';
+    const err = document.getElementById('loginError');
+    if(err) err.textContent = '';
+  };
+  window.closeLoginCard = function(){
+    const ls = document.getElementById('loginScreen');
+    if(ls) ls.style.display = 'none';
+  };
+  window.updateDrawerLoginBtn();
+
+  // Splash: remove from DOM once its animation has finished (5 s)
+  setTimeout(() => { const sp = document.getElementById('avrokSplash'); if(sp) sp.remove(); }, 5100);
+
   onAuthStateChanged(fbAuth, (user) => {
     window.currentFirebaseUser = user || null;
+    window.updateDrawerLoginBtn();
     const loginScreen = document.getElementById('loginScreen');
     if(user) {
       if(loginScreen) loginScreen.style.display = 'none';
@@ -1361,12 +1385,48 @@
   }
 
 
+
+  /* ---------------- APP OPEN SPLASH (5s) ---------------- */
+  #avrokSplash{position:fixed;inset:0;z-index:30000;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(circle at 50% 38%,#0d2d62 0%,#02050b 72%);animation:splashOut .7s ease 4.3s forwards;}
+  .splash-stage{position:relative;width:min(62vw,300px);height:min(62vw,300px);}
+  .splash-logo{position:relative;width:100%;height:100%;border-radius:50%;box-shadow:0 0 60px rgba(46,168,255,.55);animation:splashLogoIn 1.1s cubic-bezier(.2,.8,.2,1) both,splashFloat 3s ease-in-out 1.1s infinite;}
+  .splash-glow{position:absolute;inset:-50px;border-radius:50%;background:radial-gradient(circle,rgba(46,168,255,.38) 0%,transparent 66%);animation:splashPulse 2s ease-in-out infinite;}
+  .splash-ring{position:absolute;inset:-16px;border-radius:50%;border:3px solid transparent;border-top-color:#2ea8ff;border-right-color:#ffb020;animation:splashSpin 1.6s linear infinite;}
+  .splash-title{margin-top:30px;color:#fff;font:800 19px/1 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;letter-spacing:.2em;opacity:0;animation:splashFadeUp .8s ease 1s forwards;}
+  .splash-title em{font-style:normal;color:#2ea8ff;}
+  .splash-bar{margin-top:22px;width:170px;height:3px;background:rgba(255,255,255,.14);border-radius:3px;overflow:hidden;}
+  .splash-bar span{display:block;height:100%;width:0;background:linear-gradient(90deg,#2ea8ff,#ffb020);animation:splashBar 4.4s ease forwards;}
+  @keyframes splashLogoIn{from{opacity:0;transform:scale(.4) rotate(-14deg);}to{opacity:1;transform:scale(1) rotate(0);}}
+  @keyframes splashFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+  @keyframes splashSpin{to{transform:rotate(360deg);}}
+  @keyframes splashPulse{0%,100%{opacity:.55;transform:scale(.96);}50%{opacity:1;transform:scale(1.04);}}
+  @keyframes splashFadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;}}
+  @keyframes splashBar{to{width:100%;}}
+  @keyframes splashOut{to{opacity:0;visibility:hidden;}}
+
+  /* ---------------- DRAWER LOGIN BUTTON + LOGIN CARD CLOSE ---------------- */
+  .drawer-login-btn{margin:8px 14px 0;width:calc(100% - 28px);padding:12px;border:1px solid #dadce0;border-radius:12px;background:#fff;color:#3c4043;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .drawer-login-btn:active{background:#f1f3f4;}
+  .drawer-login-btn .google-logo{width:20px;height:20px;flex:0 0 20px;}
+  #loginScreen .login-card{position:relative;}
+  .login-close-btn{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;border:0;background:#eef1f5;color:#333;font-size:16px;cursor:pointer;display:none;align-items:center;justify-content:center;}
 </style>
 </head>
 <body>
+<!-- 5-second app-open splash -->
+<div id="avrokSplash" aria-hidden="true">
+  <div class="splash-stage">
+    <div class="splash-glow"></div>
+    <div class="splash-ring"></div>
+    <img class="splash-logo" src="avrok-logo.jpg" alt="">
+  </div>
+  <div class="splash-title">AVROK <em>AC SERVICE</em></div>
+  <div class="splash-bar"><span></span></div>
+</div>
 <!-- Google Login: billing app is shown only after Firebase Authentication succeeds. -->
 <div id="loginScreen">
   <div class="login-card">
+    <button type="button" class="login-close-btn" id="loginCloseBtn" aria-label="Close" onclick="closeLoginCard()">&#x2715;</button>
     <div class="brand-logo brand-lg" role="img" aria-label="Air Conditioner &amp; Electrical - Repair &amp; Service"><i class="brand-img"></i></div>
     <h1 class="login-title">Welcome to Avrok Billing</h1>
     <p class="login-subtitle">To use the Bill Generator, please continue with your Google account.</p>
@@ -1428,6 +1488,10 @@
   <button class="drawer-item" onclick="closeDrawer(); window.setDocMode && window.setDocMode('quotation'); openQuotationHistory();"><span class="icon ic-purple"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><circle cx="10" cy="15" r="2"/><path d="M14 17l3 3"/></svg></span> Quotation History (PDF)</button>
   <div class="drawer-recents-title">Recents</div>
   <div id="drawerRecentsList" class="drawer-recents-list"></div>
+  <button class="drawer-login-btn" id="drawerLoginBtn" type="button" onclick="openLoginCard()" style="display:none;">
+    <svg class="google-logo" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.35 12.27c0-.72-.06-1.42-.18-2.09H12v3.96h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.26z"/><path fill="#34A853" d="M12 21.82c2.63 0 4.84-.87 6.45-2.36l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.55 0-4.71-1.72-5.49-4.03H3.27v2.53A9.74 9.74 0 0 0 12 21.82z"/><path fill="#FBBC05" d="M6.51 13.9A5.86 5.86 0 0 1 6.2 12c0-.66.11-1.3.31-1.9V7.57H3.27A9.82 9.82 0 0 0 2.18 12c0 1.58.38 3.08 1.09 4.43l3.24-2.53z"/><path fill="#EA4335" d="M12 6.07c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.83 3.17 14.62 2.18 12 2.18a9.74 9.74 0 0 0-8.73 5.39l3.24 2.53C7.29 7.79 9.45 6.07 12 6.07z"/></svg>
+    <span>Login with Google</span>
+  </button>
   <div class="drawer-account-spacer"></div>
   <button class="drawer-account-btn" onclick="openAccountSheet()">
     <div class="drawer-account-avatar" id="drawerAccountAvatar">NA</div>
