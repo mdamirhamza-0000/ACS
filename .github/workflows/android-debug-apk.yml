@@ -29,5 +29,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: avrok-acs-debug-apk
-          path: android/app/build/outputs/apk/debug/app-normal-debug.apk
+          path: android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
