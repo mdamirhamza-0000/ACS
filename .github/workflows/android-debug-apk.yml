@@ -25,6 +25,13 @@ jobs:
         run: ./gradlew assembleDebug
         working-directory: android
 
+      - name: Print debug signing SHA-1
+        run: |
+          SHA=$(keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android | grep "SHA1:" | head -1)
+          echo "$SHA"
+          echo "### Debug SHA-1" >> "$GITHUB_STEP_SUMMARY"
+          echo "$SHA" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
