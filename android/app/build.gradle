@@ -103,6 +103,12 @@ android {
     }
 
     signingConfigs {
+        debugFixed {
+            storeFile file("../keystore/avrok-debug.keystore")
+            storePassword "avrokdebug"
+            keyAlias "avrokdebug"
+            keyPassword "avrokdebug"
+        }
         release {
             storeFile file("../../release.keystore")
             storePassword "password"
@@ -120,6 +126,7 @@ android {
     buildTypes {
         debug {
 	        applicationIdSuffix ".debug"
+            signingConfig signingConfigs.debugFixed
         }
         release {
             minifyEnabled true
