@@ -2186,19 +2186,24 @@ function refreshDrawerAccount(){
 function openAccountSheet(){ refreshDrawerAccount(); document.getElementById('accountOverlay').style.display='flex'; }
 function closeAccountSheet(){ document.getElementById('accountOverlay').style.display='none'; }
 function switchAvrokAccount(){
+  // Sign out, then open the login card so another account can be chosen
+  // (email + password works in the app; the Google button is also shown there).
   closeAccountSheet();
+  const reopen = () => setTimeout(() => {
+    if (typeof window.openLoginCard === 'function') window.openLoginCard();
+  }, 400);
   try {
     if (typeof window.logoutAccount === 'function') {
       const result = window.logoutAccount();
       if (result && typeof result.then === 'function') {
-        result.then(() => { if (typeof window.signInWithGoogle === 'function') window.signInWithGoogle(); });
-      } else if (typeof window.signInWithGoogle === 'function') {
-        window.signInWithGoogle();
+        result.then(reopen);
+      } else {
+        reopen();
       }
-    } else if (typeof window.signInWithGoogle === 'function') {
-      window.signInWithGoogle();
+    } else {
+      reopen();
     }
-  } catch(e) {}
+  } catch(e) { reopen(); }
 }
 
 function newBillCreate(skipConfirm){
