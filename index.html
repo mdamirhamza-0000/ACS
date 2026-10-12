@@ -1603,6 +1603,27 @@
   </div>
 
   <div class="panel">
+    <h2>Work Done (optional)</h2>
+    <div class="field">
+      <label>Work description (kya kaam kiya)</label>
+      <textarea id="workDesc" rows="3" placeholder="e.g. Gas filling, drain pipe cleaning, PCB repair..."></textarea>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Work photo 1</label>
+        <input type="file" id="workFile1" accept="image/*" onchange="handleWorkPhoto(1, this)">
+        <img id="workPreview1" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;">
+      </div>
+      <div class="field">
+        <label>Work photo 2</label>
+        <input type="file" id="workFile2" accept="image/*" onchange="handleWorkPhoto(2, this)">
+        <img id="workPreview2" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;">
+      </div>
+    </div>
+    <p style="font-size:12px; color:#666; margin:6px 0 0;">Ye photos aur description bill PDF ke saath alag page par jud jayenge.</p>
+  </div>
+
+  <div class="panel">
     <h2>Items / Particulars (Item name and price)</h2>
     <table id="itemsTable">
       <thead>
@@ -2132,6 +2153,90 @@ function prepareCompanyHeading(){
   }
 }
 
+// ---------------- Work done photos + description (added as a page after the bill) ----------------
+window.workPhotos = [null, null];
+
+function readWorkPhoto(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const max = 1400;
+      const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * k);
+      const h = Math.round(img.naturalHeight * k);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve({ dataUrl: c.toDataURL('image/jpeg', 0.85), w: w, h: h });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+    img.src = url;
+  });
+}
+
+function handleWorkPhoto(i, input){
+  const f = input.files && input.files[0];
+  if(!f) return;
+  readWorkPhoto(f).then(p => {
+    window.workPhotos[i-1] = p;
+    const pv = document.getElementById('workPreview' + i);
+    pv.src = p.dataUrl;
+    pv.style.display = 'block';
+  }).catch(() => alert('Photo load nahi hui, dobara try karein.'));
+}
+
+function clearWorkPhotos(){
+  window.workPhotos = [null, null];
+  [1, 2].forEach(i => {
+    const pv = document.getElementById('workPreview' + i);
+    const fi = document.getElementById('workFile' + i);
+    if(pv){ pv.removeAttribute('src'); pv.style.display = 'none'; }
+    if(fi){ fi.value = ''; }
+  });
+  const d = document.getElementById('workDesc');
+  if(d) d.value = '';
+}
+
+// Adds a page after the bill with the work description and the work photos.
+function appendWorkPhotosPage(pdf, billNo){
+  const photos = (window.workPhotos || []).filter(Boolean);
+  const desc = (document.getElementById('workDesc').value || '').trim();
+  if(!photos.length && !desc) return;
+
+  pdf.addPage('a4', 'p');
+  pdf.setFont(undefined, 'bold');
+  pdf.setFontSize(16);
+  pdf.text('WORK DONE DETAILS', 105, 18, { align: 'center' });
+  pdf.setFont(undefined, 'normal');
+  pdf.setFontSize(10);
+  pdf.text('Bill No. ' + (billNo || ''), 10, 26);
+
+  let y = 34;
+  if(desc){
+    pdf.setFontSize(11);
+    const lines = pdf.splitTextToSize(desc, 190);
+    pdf.text(lines, 10, y);
+    y += lines.length * 5 + 6;
+  }
+
+  photos.forEach((p, i) => {
+    const remaining = photos.length - i;
+    const avail = (280 - y) / remaining - 8;
+    const maxH = Math.min(125, avail);
+    const maxW = 190;
+    const k = Math.min(maxW / p.w, maxH / p.h);
+    const w = p.w * k, h = p.h * k;
+    const x = 10 + (maxW - w) / 2;
+    pdf.addImage(p.dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
+    y += h + 8;
+  });
+
+  pdf.setFontSize(9);
+  pdf.text('AVROK AC SERVICE', 105, 290, { align: 'center' });
+}
+
 function generateBill(openFile = true){
   // Fill invoice template with entered data
   const snoInput = document.getElementById('sno');
@@ -2222,6 +2327,7 @@ function generateBill(openFile = true){
     const imgHeight = canvas.height * imgWidth / canvas.width;
     pdf.addImage(imgData, 'JPEG', 10, 10, imgWidth, imgHeight, undefined, 'FAST');
     const filename = buildBillFilename(currentSno, `${nowParts.date}, ${nowParts.time}`);
+    appendWorkPhotosPage(pdf, currentSno);
     downloadPDF(pdf, filename, openFile);
 
     // Show the next sequential bill number for the next bill
@@ -2323,6 +2429,7 @@ function newBillCreate(skipConfirm){
   document.getElementById('model').value = '';
   document.getElementById('serial1').value = '';
   document.getElementById('serial2').value = '';
+  clearWorkPhotos();
   rowCount = 0;
   document.getElementById('itemsBody').innerHTML = '';
   addRow();
@@ -2859,6 +2966,7 @@ function restoreBillToForm(idx){
   document.getElementById('model').value = rec.model || '';
   document.getElementById('serial1').value = '';
   document.getElementById('serial2').value = '';
+  clearWorkPhotos();
 
   const tbody = document.getElementById('itemsBody');
   tbody.innerHTML = '';
