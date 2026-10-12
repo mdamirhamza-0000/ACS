@@ -2053,7 +2053,7 @@ function generateBill(openFile = true){
   const nowParts = formatNowParts();
   document.getElementById('p_date').textContent = nowParts.date;
   document.getElementById('p_time').textContent = nowParts.time;
-  document.getElementById('p_cust').textContent = BILL_PRINTED_CUSTOMER_NAME;
+  document.getElementById('p_cust').textContent = document.getElementById('custName').value;
   document.getElementById('p_addr').textContent = document.getElementById('custAddr').value;
   document.getElementById('p_product').textContent = document.getElementById('product').value;
   document.getElementById('p_model').textContent = document.getElementById('model').value;
@@ -2805,7 +2805,7 @@ function redownloadBill(idx){
   const [d, t] = rec.dateTime.split(', ');
   document.getElementById('p_date').textContent = d;
   document.getElementById('p_time').textContent = t;
-  document.getElementById('p_cust').textContent = BILL_PRINTED_CUSTOMER_NAME;
+  document.getElementById('p_cust').textContent = rec.custName;
   document.getElementById('p_addr').textContent = rec.address;
   document.getElementById('p_product').textContent = rec.product;
   document.getElementById('p_model').textContent = rec.model;
@@ -2948,10 +2948,6 @@ function buildBillFilename(billNo, dateTimeStr){
   return `AVROK_Bill_${billNo || 'bill'}_${stamp}.pdf`;
 }
 
-// Name printed in the "M/s." line of every generated bill PDF.
-// The customer name typed in the form is still saved in history and used for search.
-const BILL_PRINTED_CUSTOMER_NAME = 'AVROK AC SERVICE';
-
 // Bill numbers are sequential (0001, 0002, ...). The last issued number is kept
 // per user in localStorage and only advances when a bill is actually saved.
 const BILL_SEQ_KEY = 'avrok_bill_seq';
@@ -2993,7 +2989,7 @@ function toRoman(num){
 }
 
 function buildBillMessage(){
-  const custName = BILL_PRINTED_CUSTOMER_NAME;
+  const custName = window.lastGeneratedCustName || 'Customer';
   const billNo = window.lastGeneratedBillNo || '';
   const total = (window.lastGeneratedTotal || 0).toFixed(2);
   const items = window.lastGeneratedItems || [];
