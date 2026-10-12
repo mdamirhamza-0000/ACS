@@ -3650,12 +3650,32 @@ function quotFmtDateForSlipFull(iso){
 quotUpdateLiveClock();
 setInterval(quotUpdateLiveClock, 1000);
 
-// ---------------- Random quotation number ----------------
-function quotGenerateRandomQNo(){
-  const n = Math.floor(1000 + Math.random() * 9000); // 4-digit random
-  document.getElementById('qz-qNo').value = n;
+// ---------------- Sequential quotation number (0001, 0002, ...) ----------------
+// The last issued number is kept per user and only advances when a quotation is saved.
+const QUOT_SEQ_KEY = 'avrok_quot_seq';
+let quotSeqMemory = 0; // fallback when browser storage is blocked
+
+function quotGetSeqStorageKey(){
+  const user = window.currentFirebaseUser;
+  return user && user.uid ? (QUOT_SEQ_KEY + '_' + user.uid) : QUOT_SEQ_KEY;
 }
-quotGenerateRandomQNo();
+function quotGetLastSeq(){
+  try{
+    const n = parseInt(localStorage.getItem(quotGetSeqStorageKey()) || '0', 10);
+    return isNaN(n) ? quotSeqMemory : Math.max(n, quotSeqMemory);
+  }catch(e){
+    return quotSeqMemory;
+  }
+}
+function quotSetLastSeq(n){
+  quotSeqMemory = Math.max(quotSeqMemory, n);
+  try{ localStorage.setItem(quotGetSeqStorageKey(), String(quotGetLastSeq())); }catch(e){}
+}
+function quotGenerateNextQNo(){
+  const next = quotGetLastSeq() + 1;
+  document.getElementById('qz-qNo').value = String(next).padStart(4, '0');
+}
+quotGenerateNextQNo();
 
 // ---------------- Items table ----------------
 function quotAddRow(particulars='', qty=1, rate='', amount=''){
@@ -3797,7 +3817,7 @@ function quotGenerateQuotationPDF(){
   const total = quotRenderSlip();
   quotDownloadPDF();
   quotSaveToHistory(total);
-  quotGenerateRandomQNo();
+  quotGenerateNextQNo();
   quotRenderSlip();
 }
 
@@ -4300,6 +4320,8 @@ function quotGetHistoryStorageKey(){
   return user && user.uid ? ('avrok_quotation_history_' + user.uid) : quotSTORAGE_KEY;
 }
 function quotSaveToHistory(total){
+  const savedSeq = parseInt(document.getElementById('qz-qNo').value, 10);
+  if(!isNaN(savedSeq)) quotSetLastSeq(savedSeq);
   try{
     const key = quotGetHistoryStorageKey();
     let history = [];
@@ -4403,7 +4425,7 @@ window.setDocMode = setDocMode;
 // init (quotation side)
 quotUpdateLiveClock();
 setInterval(quotUpdateLiveClock, 1000);
-quotGenerateRandomQNo();
+quotGenerateNextQNo();
 quotAddRow();
 
 </script>
