@@ -678,36 +678,12 @@
   .inv-titlebar-wrap { text-align: center; }
   .inv-company {
     text-align: center;
-    font-size: 34px;
+    font-size: 30px;
     font-weight: 900;
-    color: #1d5fd6;
+    color: #14213d;
     margin: 4px 0 0 0;
-    letter-spacing: 5px;
-    transform: scaleX(1.4);
-    transform-origin: center;
-    -webkit-text-stroke: 1.2px #f5b700;
-    /* layered gold / navy depth, like the poster heading */
-    filter:
-      drop-shadow(1px 1px 0 #f5b700)
-      drop-shadow(2px 2px 0 #b87a08)
-      drop-shadow(3px 3px 0 #0b2a6b)
-      drop-shadow(4px 4px 0 #061538)
-      drop-shadow(6px 7px 8px rgba(0,0,0,.45));
   }
-  /* chrome / silver metallic fill (browsers that support clipped text) */
-  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
-    .inv-company {
-      background: linear-gradient(180deg, #ffffff 0%, #e6f0ff 28%, #9db7d8 47%, #1d3f80 50%, #6f9ad8 72%, #ffffff 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-      color: transparent;
-    }
-    .inv-company .inv-ac {
-      -webkit-text-fill-color: #1d5fd6;
-      color: #1d5fd6;
-    }
-  }
+  .inv-company .inv-ac { color: #1d5fd6; }
   .inv-subcompany {
     text-align: center;
     font-size: 26px;
@@ -1918,7 +1894,7 @@ theme isn't affected. downloadQR() captures this instead of the plain QR. -->
     <div class="inv-toll">TOLL FREE<br>📞 1860 425 4555</div>
   </div>
   <div class="inv-titlebar-wrap"><span class="inv-titlebar">BILL / CASH MEMO</span></div>
-  <div class="inv-company">AVROK <span class="inv-ac">AC</span> SERVICE</div>
+  <div class="inv-company"><img id="p_companyImg" alt="AVROK AC SERVICE" style="display:none; width:92%; height:auto;"><span id="p_companyText">AVROK <span class="inv-ac">AC</span> SERVICE</span></div>
   <div class="inv-subcompany">— ITI ENGINEER —</div>
   <div class="inv-tagline">⚡ REPAIRING • INSTALLATION • MAINTENANCE SERVICE CENTER ⚡</div>
 
@@ -2069,6 +2045,93 @@ function fmtAmountCell(text){
   return `<span style="font-size:${fs}px; white-space:nowrap;">${text}</span>`;
 }
 
+// ---- Poster-style company heading (drawn on a canvas so it saves correctly in the bill PDF) ----
+function buildCompanyHeadingImage(){
+  const FONT = 110, SX = 1.4, PAD = 50, SP = 6;
+  const font = '900 ' + FONT + 'px "Arial Black", Arial, Helvetica, sans-serif';
+  const m = document.createElement('canvas').getContext('2d');
+  m.font = font;
+  const runs = [{t:'AVROK ', k:'chrome'}, {t:'AC', k:'blue'}, {t:' SERVICE', k:'chrome'}];
+  const glyphs = [];
+  let x = 0;
+  runs.forEach(r => {
+    for (const ch of r.t) {
+      glyphs.push({ ch: ch, x: x, k: r.k });
+      x += m.measureText(ch).width + SP;
+    }
+  });
+  const textW = x - SP;
+  const W = Math.ceil(textW * SX + PAD * 2 + 20);
+  const H = Math.ceil(FONT * 1.5 + PAD * 2);
+  const Y = PAD + FONT * 1.05;
+
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.font = font;
+  g.lineJoin = 'round';
+  g.setTransform(SX, 0, 0, 1, PAD, 0);
+
+  const chrome = () => {
+    const gr = g.createLinearGradient(0, Y - FONT * 0.8, 0, Y + FONT * 0.05);
+    gr.addColorStop(0, '#ffffff');
+    gr.addColorStop(0.28, '#e6f0ff');
+    gr.addColorStop(0.47, '#9db7d8');
+    gr.addColorStop(0.50, '#1d3f80');
+    gr.addColorStop(0.72, '#6f9ad8');
+    gr.addColorStop(1, '#ffffff');
+    return gr;
+  };
+  const blue = () => {
+    const gr = g.createLinearGradient(0, Y - FONT * 0.8, 0, Y + FONT * 0.05);
+    gr.addColorStop(0, '#9cc8ff');
+    gr.addColorStop(0.5, '#1d5fd6');
+    gr.addColorStop(1, '#0a3a9a');
+    return gr;
+  };
+  const fillOf = k => (k === 'blue' ? blue() : chrome());
+  const drawAll = (dx, dy, color) => {
+    g.fillStyle = color;
+    glyphs.forEach(q => g.fillText(q.ch, q.x + dx, Y + dy));
+  };
+
+  // 3D depth: navy layers, then gold layer closest to the letters
+  for (let d = 7; d >= 2; d--) drawAll(d, d, '#061538');
+  drawAll(1, 1, '#b87a08');
+
+  // soft drop shadow
+  g.shadowColor = 'rgba(0,0,0,0.45)';
+  g.shadowOffsetX = 5; g.shadowOffsetY = 6; g.shadowBlur = 10;
+  drawAll(0, 0, '#061538');
+  g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetX = 0; g.shadowOffsetY = 0;
+
+  // gold outline
+  g.strokeStyle = '#f5b700';
+  g.lineWidth = 12;
+  glyphs.forEach(q => g.strokeText(q.ch, q.x, Y));
+
+  // metallic fill
+  glyphs.forEach(q => { g.fillStyle = fillOf(q.k); g.fillText(q.ch, q.x, Y); });
+
+  return c.toDataURL('image/png');
+}
+
+function prepareCompanyHeading(){
+  const img = document.getElementById('p_companyImg');
+  const text = document.getElementById('p_companyText');
+  try {
+    img.src = buildCompanyHeadingImage();
+    img.style.display = 'inline-block';
+    text.style.display = 'none';
+    return img.decode ? img.decode().catch(() => {}) : Promise.resolve();
+  } catch(e){
+    console.warn('Heading image failed, using text heading:', e);
+    img.style.display = 'none';
+    text.style.display = '';
+    return Promise.resolve();
+  }
+}
+
 function generateBill(openFile = true){
   // Fill invoice template with entered data
   const snoInput = document.getElementById('sno');
@@ -2149,7 +2212,7 @@ function generateBill(openFile = true){
     receiverSignature: window.receiverSignatureDataUrl || null
   });
 
-  return html2canvas(el, {scale: 1.5, backgroundColor: '#ffffff'}).then(canvas => {
+  return prepareCompanyHeading().then(() => html2canvas(el, {scale: 1.5, backgroundColor: '#ffffff'})).then(canvas => {
     el.style.left = '-9999px';
     const imgData = canvas.toDataURL('image/jpeg', 0.8);
     const { jsPDF } = window.jspdf;
