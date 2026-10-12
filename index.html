@@ -1564,7 +1564,7 @@
     <div class="grid2">
       <div class="field">
         <label>S. No. (Bill No.)</label>
-        <input type="text" id="sno" value="2436" readonly style="background:#f0f3f9; font-weight:700; color:#1a3e8c;">
+        <input type="text" id="sno" value="0001" readonly style="background:#f0f3f9; font-weight:700; color:#1a3e8c;">
       </div>
       <div class="field">
         <label>Date &amp; Time (Auto — Live)</label>
@@ -2100,6 +2100,10 @@ function generateBill(openFile = true){
   el.style.left = '0px';
   el.style.top = '-9999px';
 
+  // Advance the sequence only now that this bill is really being issued
+  const issuedSeq = parseInt(currentSno, 10);
+  if (!isNaN(issuedSeq)) setLastBillSeq(issuedSeq);
+
   window.lastGeneratedBillNo = currentSno;
   window.lastGeneratedTotal = total;
   window.lastGeneratedCustName = document.getElementById('custName').value;
@@ -2131,8 +2135,8 @@ function generateBill(openFile = true){
     pdf.addImage(imgData, 'JPEG', 10, 10, imgWidth, imgHeight, undefined, 'FAST');
     downloadPDF(pdf, buildBillFilename(currentSno, `${nowParts.date}, ${nowParts.time}`), openFile);
 
-    // Auto-generate a fresh random bill number for the next bill
-    generateRandomBillNo();
+    // Show the next sequential bill number for the next bill
+    generateNextBillNo();
   });
 }
 
@@ -2233,7 +2237,7 @@ function newBillCreate(skipConfirm){
   document.getElementById('itemsBody').innerHTML = '';
   addRow();
   calcTotal();
-  generateRandomBillNo();
+  generateNextBillNo();
   updateLiveClock();
   window.receiverSignatureDataUrl = null;
   updateSignatureButtonLabel();
@@ -2942,10 +2946,32 @@ function buildBillFilename(billNo, dateTimeStr){
   return `AVROK_Bill_${billNo || 'bill'}_${stamp}.pdf`;
 }
 
-function generateRandomBillNo(){
-  // Random 4-digit bill number so user never has to type it
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  document.getElementById('sno').value = rand;
+// Bill numbers are sequential (0001, 0002, ...). The last issued number is kept
+// per user in localStorage and only advances when a bill is actually saved.
+const BILL_SEQ_KEY = 'avrok_bill_seq';
+let billSeqMemory = 0; // fallback when browser storage is blocked
+
+function getBillSeqStorageKey(){
+  return user && user.uid ? (BILL_SEQ_KEY + '_' + user.uid) : BILL_SEQ_KEY;
+}
+
+function getLastBillSeq(){
+  try {
+    const n = parseInt(localStorage.getItem(getBillSeqStorageKey()) || '0', 10);
+    return isNaN(n) ? billSeqMemory : Math.max(n, billSeqMemory);
+  } catch(e){
+    return billSeqMemory;
+  }
+}
+
+function setLastBillSeq(n){
+  billSeqMemory = Math.max(billSeqMemory, n);
+  try { localStorage.setItem(getBillSeqStorageKey(), String(getLastBillSeq())); } catch(e){}
+}
+
+function generateNextBillNo(){
+  const next = getLastBillSeq() + 1;
+  document.getElementById('sno').value = String(next).padStart(4, '0');
 }
 
 function toRoman(num){
@@ -3437,7 +3463,7 @@ async function sendAiMessage(){
 // init
 updateLiveClock();
 setInterval(updateLiveClock, 1000);
-generateRandomBillNo();
+generateNextBillNo();
 addRow();
 </script>
 
