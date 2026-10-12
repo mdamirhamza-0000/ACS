@@ -2133,10 +2133,12 @@ function generateBill(openFile = true){
     const imgWidth = pageWidth - 20;
     const imgHeight = canvas.height * imgWidth / canvas.width;
     pdf.addImage(imgData, 'JPEG', 10, 10, imgWidth, imgHeight, undefined, 'FAST');
-    downloadPDF(pdf, buildBillFilename(currentSno, `${nowParts.date}, ${nowParts.time}`), openFile);
+    const filename = buildBillFilename(currentSno, `${nowParts.date}, ${nowParts.time}`);
+    downloadPDF(pdf, filename, openFile);
 
     // Show the next sequential bill number for the next bill
     generateNextBillNo();
+    return { pdf, filename };
   });
 }
 
@@ -3030,22 +3032,46 @@ function buildBillMessage(){
   return msg;
 }
 
+// Try to share the bill PDF together with the message using the device's
+// share sheet (WhatsApp appears in it). Returns true if handled.
+async function shareBillFile(file, text){
+  try {
+    if (!navigator.share || !navigator.canShare || !navigator.canShare({ files: [file] })) return false;
+    await navigator.share({ files: [file], text: text, title: 'AVROK Bill' });
+    return true;
+  } catch(e){
+    // User closed the share sheet: nothing more to do.
+    if (e && e.name === 'AbortError') return true;
+    // Share not allowed here (e.g. the user-tap expired): use the fallback.
+    return false;
+  }
+}
+
+// Sends the bill PDF + message to the customer. Falls back to opening
+// WhatsApp with just the text if the browser cannot share files.
+function deliverBillOnWhatsApp(mobile, waWindow, billReady){
+  return billReady.then(async ({ pdf, filename }) => {
+    const message = buildBillMessage();
+    const file = new File([pdf.output('blob')], filename, { type: 'application/pdf' });
+    if (await shareBillFile(file, message)) {
+      if (waWindow) { try { waWindow.close(); } catch(e){} }
+      return;
+    }
+    const waUrl = `https://wa.me/91${mobile}?text=${encodeURIComponent(message)}`;
+    if (waWindow) { waWindow.location.href = waUrl; }
+    else { window.open(waUrl, '_blank'); }
+  });
+}
+
 function sendWhatsApp(){
   const mobile = document.getElementById('custMobile').value.trim();
   if(!/^\d{10}$/.test(mobile)){
     alert('Please enter a valid 10-digit customer mobile number.');
     return;
   }
-  // Open the tab immediately (synchronously, inside the click handler) so
-  // Chrome's popup blocker treats it as a direct result of the user's tap.
-  // We fill in the actual WhatsApp URL a moment later once the PDF is ready.
+  // Open a tab synchronously so the popup blocker allows the WhatsApp fallback.
   const waWindow = window.open('', '_blank');
-  generateBill(false).then(()=>{
-    const message = buildBillMessage();
-    const waUrl = `https://wa.me/91${mobile}?text=${encodeURIComponent(message)}`;
-    if (waWindow) { waWindow.location.href = waUrl; }
-    else { window.open(waUrl, '_blank'); }
-  });
+  deliverBillOnWhatsApp(mobile, waWindow, generateBill(false));
 }
 
 function buildUpiUrl(total, billNo){
@@ -3169,15 +3195,11 @@ function confirmPaymentAndSend(){
   // in this order — instead of closing the overlay first — is what makes
   // the QR image actually contain the QR code instead of coming out
   // blank/empty.
-  downloadQR(false).then(() => {
+  const billReady = downloadQR(false).then(() => {
     closeQRFullscreen();
     return generateBill(false);
-  }).then(()=>{
-    const message = buildBillMessage();
-    const waUrl = `https://wa.me/91${mobile}?text=${encodeURIComponent(message)}`;
-    if (waWindow) { waWindow.location.href = waUrl; }
-    else { window.open(waUrl, '_blank'); }
   });
+  deliverBillOnWhatsApp(mobile, waWindow, billReady);
 }
 
 function closeQRFullscreen(){
