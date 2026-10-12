@@ -682,20 +682,31 @@
     font-weight: 900;
     color: #1d5fd6;
     margin: 4px 0 0 0;
-    /* bold, long, 3D look like the poster heading */
     letter-spacing: 5px;
     transform: scaleX(1.4);
     transform-origin: center;
     -webkit-text-stroke: 1.2px #f5b700;
-    text-shadow:
-      1px 1px 0 #f5b700,
-      2px 2px 0 #d9960b,
-      3px 3px 0 #b87a08,
-      4px 4px 0 #0b2a6b,
-      5px 5px 0 #0a2459,
-      6px 6px 0 #081c48,
-      7px 7px 0 #061538,
-      8px 9px 12px rgba(0,0,0,.45);
+    /* layered gold / navy depth, like the poster heading */
+    filter:
+      drop-shadow(1px 1px 0 #f5b700)
+      drop-shadow(2px 2px 0 #b87a08)
+      drop-shadow(3px 3px 0 #0b2a6b)
+      drop-shadow(4px 4px 0 #061538)
+      drop-shadow(6px 7px 8px rgba(0,0,0,.45));
+  }
+  /* chrome / silver metallic fill (browsers that support clipped text) */
+  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .inv-company {
+      background: linear-gradient(180deg, #ffffff 0%, #e6f0ff 28%, #9db7d8 47%, #1d3f80 50%, #6f9ad8 72%, #ffffff 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+    }
+    .inv-company .inv-ac {
+      -webkit-text-fill-color: #1d5fd6;
+      color: #1d5fd6;
+    }
   }
   .inv-subcompany {
     text-align: center;
@@ -1907,7 +1918,7 @@ theme isn't affected. downloadQR() captures this instead of the plain QR. -->
     <div class="inv-toll">TOLL FREE<br>📞 1860 425 4555</div>
   </div>
   <div class="inv-titlebar-wrap"><span class="inv-titlebar">BILL / CASH MEMO</span></div>
-  <div class="inv-company">AVROK AC SERVICE</div>
+  <div class="inv-company">AVROK <span class="inv-ac">AC</span> SERVICE</div>
   <div class="inv-subcompany">— ITI ENGINEER —</div>
   <div class="inv-tagline">⚡ REPAIRING • INSTALLATION • MAINTENANCE SERVICE CENTER ⚡</div>
 
