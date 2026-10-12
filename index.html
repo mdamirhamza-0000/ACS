@@ -2991,37 +2991,43 @@ function toRoman(num){
 }
 
 function buildBillMessage(){
-  const custName = window.lastGeneratedCustName || 'Customer';
+  const custName = BILL_PRINTED_CUSTOMER_NAME;
   const billNo = window.lastGeneratedBillNo || '';
   const total = (window.lastGeneratedTotal || 0).toFixed(2);
   const items = window.lastGeneratedItems || [];
+  const line = '━━━━━━━━━━━━━━━━━━━━';
 
   // Note: WhatsApp/Android auto-highlights a "₹" glued directly to a number
-  // (like ₹330.00) as a tappable amount. Adding a space after ₹ breaks that
-  // pattern so item lines stay plain — while the Total is left glued on
-  // purpose so it's the one that stands out.
+  // (like ₹3500.00) as a tappable amount. Item amounts keep a space after ₹
+  // so they stay plain; the Total is left glued on purpose so it stands out.
 
-  // ---- English section ----
-  let en = '';
-  en += `Namaste ${custName},\n`;
-  en += `AVROK AC Electrician (ITI Engineer) - Bill No. ${billNo}\n`;
+  let msg = '';
+  msg += `🔧 *AVROK AC ELECTRICIAN* 🔧\n`;
+  msg += `_(ITI Engineer)_\n`;
+  msg += `${line}\n\n`;
+  msg += `Dear *${custName}*,\n\n`;
+  msg += `Thank you for choosing *AVROK AC Electrician*! 🙏\n`;
+  msg += `Your service bill is ready. Please find the details below.\n\n`;
+  msg += `🧾 *Bill No:* ${billNo}\n`;
+  msg += `${line}\n`;
+  msg += `*SERVICE DETAILS*\n`;
   items.forEach((it, idx) => {
-    en += `${toRoman(idx+1)}. ${it.name} (Qty ${it.qty}, Rate ₹ ${it.rate.toFixed(2)}) — ₹ ${it.amt.toFixed(2)}\n`;
+    msg += `${idx+1}. ${it.name}\n`;
+    msg += `     Qty ${it.qty} × ₹ ${it.rate.toFixed(2)} = ₹ ${it.amt.toFixed(2)}\n`;
   });
-  en += `*Total Amount: ₹${total}*\n`;
-  en += `Thank you!`;
+  msg += `${line}\n`;
+  msg += `💰 *TOTAL AMOUNT: ₹${total}*\n`;
+  msg += `${line}\n\n`;
+  msg += `📄 Please find your bill PDF attached.\n\n`;
+  msg += `For any query, feel free to contact us:\n`;
+  msg += `📞 +91-9155944307\n`;
+  msg += `📍 Khansa Mandi Shakti Park, Near Rock Ford School, Gurugram (HR)\n\n`;
+  msg += `⭐ _Quality Service | 100% Satisfaction_ ⭐\n`;
+  msg += `_Your Satisfaction, Our Responsibility_\n\n`;
+  msg += `🙏 *Thank you for your trust!*\n`;
+  msg += `— Team AVROK AC Electrician`;
 
-  // ---- Hindi section ----
-  let hi = '';
-  hi += `नमस्ते ${custName},\n`;
-  hi += `एवरोक एसी इलेक्ट्रीशियन (आईटीआई इंजीनियर) - बिल नं. ${billNo}\n`;
-  items.forEach((it, idx) => {
-    hi += `${toRoman(idx+1)}. ${it.name} (मात्रा ${it.qty}, दर ₹ ${it.rate.toFixed(2)}) — ₹ ${it.amt.toFixed(2)}\n`;
-  });
-  hi += `*कुल राशि: ₹${total}*\n`;
-  hi += `Thank you!`;
-
-  return `${en}\n\n${hi}`;
+  return msg;
 }
 
 function sendWhatsApp(){
