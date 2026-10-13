@@ -1500,7 +1500,7 @@
   <button class="drawer-item" onclick="closeDrawer(); openSearchBill();"><span class="icon ic-purple"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></span> Search Bill</button>
   <button class="drawer-item" onclick="closeDrawer(); generateCustomerRecordPDF();"><span class="icon ic-red"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></span> Customer Record PDF</button>
   <button class="drawer-item" onclick="closeDrawer(); openBillHistory();"><span class="icon ic-green"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></span> View All Bills Record</button>
-  <button class="drawer-item" onclick="closeDrawer(); window.setDocMode && window.setDocMode('quotation'); openQuotationHistory();"><span class="icon ic-purple"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><circle cx="10" cy="15" r="2"/><path d="M14 17l3 3"/></svg></span> Quotation History (PDF)</button>
+  <button class="drawer-item" onclick="closeDrawer(); openQuotationHistoryFromMenu();"><span class="icon ic-purple"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><circle cx="10" cy="15" r="2"/><path d="M14 17l3 3"/></svg></span> Quotation History (PDF)</button>
   <div class="drawer-recents-title">Recents</div>
   <div id="drawerRecentsList" class="drawer-recents-list"></div>
   <button class="drawer-login-btn" id="drawerLoginBtn" type="button" onclick="openLoginCard()" style="display:none;">
@@ -1856,7 +1856,7 @@
 </div>
 
 <!-- Quotation history overlay (customer name, mobile, address, date & time, amount) -->
-<div id="quotHistoryOverlay" style="display:none; position:fixed; inset:0; background:rgba(58,12,42,0.92); z-index:9998; padding:20px; padding-top:max(20px, env(safe-area-inset-top, 20px)); overflow-y:auto;">
+<div id="quotHistoryOverlay" style="display:none; position:fixed; inset:0; background:rgba(58,12,42,0.92); z-index:10030; padding:20px; padding-top:max(20px, env(safe-area-inset-top, 20px)); overflow-y:auto;">
   <div style="max-width:600px; margin:0 auto; background:#fff; border-radius:10px; padding:18px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
       <h2 style="margin:0; color:#7a1656; font-size:18px;"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg> Quotation History</h2>
@@ -4524,6 +4524,7 @@ function quotSaveToHistory(total){
       custMobile: document.getElementById('qz-custMobile').value.trim(),
       custAddr: document.getElementById('qz-custAddr').value.trim(),
       total: total.toFixed(2),
+      items: quotReadItemsFromForm(),
       savedAt: Date.now()
     };
     history = history.filter(r => r.qNo !== record.qNo);
@@ -4540,8 +4541,77 @@ function quotGetHistory(){
   catch(e){ return null; }
 }
 function openQuotationHistory(){
-  quotRenderHistoryOverlay();
-  document.getElementById('quotHistoryOverlay').style.display = 'flex';
+  const ov = document.getElementById('quotHistoryOverlay');
+  ov.style.display = 'flex';
+  try{
+    quotRenderHistoryOverlay();
+  }catch(e){
+    console.error('Quotation history render failed:', e);
+    document.getElementById('quotHistoryList').innerHTML = '<p style="text-align:center; color:#e63946; padding:20px;">History load nahi hui. Page refresh karke dobara try karein.</p>';
+  }
+}
+function openQuotationHistoryFromMenu(){
+  try{ if(window.setDocMode) window.setDocMode('quotation'); }catch(e){ console.warn(e); }
+  openQuotationHistory();
+}
+
+function quotReadItemsFromForm(){
+  return Array.from(document.querySelectorAll('#qz-itemsBody tr')).map(tr => ({
+    part: tr.querySelector('.qz-f-part').value,
+    qty: tr.querySelector('.qz-f-qty').value,
+    rate: tr.querySelector('.qz-f-rate').value,
+    amt: tr.querySelector('.qz-f-amt').value
+  }));
+}
+
+// Puts a saved quotation (or a form snapshot) back into the quotation form.
+function quotLoadForm(d){
+  document.getElementById('qz-qNo').value = d.qNo || '';
+  document.getElementById('qz-custName').value = d.custName || '';
+  document.getElementById('qz-custAddr').value = d.custAddr || '';
+  document.getElementById('qz-custMobile').value = d.custMobile || '';
+  document.getElementById('qz-itemsBody').innerHTML = '';
+  const items = d.items || [];
+  if(items.length === 0){
+    quotAddRow();
+    return;
+  }
+  items.forEach(it => {
+    quotAddRow('', it.qty || '1', it.rate || '', it.amt || '');
+    const tr = document.getElementById('qz-itemsBody').lastElementChild;
+    tr.querySelector('.qz-f-part').value = it.part || '';
+  });
+}
+
+// Builds the quotation PDF again from a saved history entry, without changing what is on the form.
+function quotHistoryPdf(qNo){
+  const rec = (quotGetHistory() || []).find(r => r.qNo === qNo);
+  if(!rec){ alert('Quotation record nahi mila.'); return; }
+  if(!rec.items || !rec.items.length){
+    alert('Is purani entry mein items save nahi hain. Naya quotation banakar save karein, phir PDF history se ban jayega.');
+    return;
+  }
+  const snap = {
+    qNo: document.getElementById('qz-qNo').value,
+    custName: document.getElementById('qz-custName').value,
+    custAddr: document.getElementById('qz-custAddr').value,
+    custMobile: document.getElementById('qz-custMobile').value,
+    items: quotReadItemsFromForm()
+  };
+  const savedPhotos = window.quotPhotos;
+  try{
+    quotLiveDateISO = rec.date || quotLiveDateISO;
+    quotLiveTimeStr = rec.time || quotLiveTimeStr;
+    quotLoadForm(rec);
+    window.quotPhotos = [null, null, null];   // photos are not stored in history
+    quotRenderSlip();
+    quotDownloadPDF();
+  } finally {
+    window.quotPhotos = savedPhotos;
+    quotLoadForm(snap);
+    quotRenderSlip();
+    quotUpdateLiveClock();
+  }
 }
 function closeQuotationHistory(){
   document.getElementById('quotHistoryOverlay').style.display = 'none';
@@ -4563,6 +4633,7 @@ function quotRenderHistoryOverlay(){
         <span>Quotation No. ${r.qNo}</span>
         <span style="display:flex; align-items:center; gap:8px;">
           <span>₹${r.total}</span>
+          <button onclick="quotHistoryPdf('${r.qNo}')" title="Download PDF" style="background:#1a3e8c; color:#fff; border:none; border-radius:6px; height:26px; padding:0 8px; font-size:12px; font-weight:700; cursor:pointer; flex-shrink:0;">PDF</button>
           <button onclick="quotDeleteHistoryRecord('${r.qNo}')" style="background:#e63946; color:#fff; border:none; border-radius:6px; width:26px; height:26px; font-size:13px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center;"><svg class="pro-icon history-trash-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 15H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
         </span>
       </div>
