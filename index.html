@@ -2347,8 +2347,10 @@ function generateBill(openFile = true){
   el.style.top = '-9999px';
 
   // Advance the sequence only now that this bill is really being issued
-  const issuedSeq = parseInt(currentSno, 10);
-  if (!isNaN(issuedSeq)) setLastBillSeq(issuedSeq);
+  const snoParts = String(currentSno || '').split('/');
+  const issuedYear = snoParts[2];
+  const issuedSeq = parseInt(snoParts[3], 10);
+  if (issuedYear && !isNaN(issuedSeq)) setLastBillSeq(issuedYear, issuedSeq);
 
   window.lastGeneratedBillNo = currentSno;
   window.lastGeneratedTotal = total;
@@ -3194,35 +3196,42 @@ function updateLiveClock(){
 // Builds the PDF file name as: AVROK_Bill_<BillNumber>_<DD-MM-YYYY>_<HH-MM-SS-AMPM>.pdf
 function buildBillFilename(billNo, dateTimeStr){
   const stamp = (dateTimeStr || formatNow()).replace(/[/,: ]/g, '-');
-  return `AVROK_Bill_${billNo || 'bill'}_${stamp}.pdf`;
+  const safeNo = String(billNo || 'bill').replace(/[\/\\]/g, '-');
+  return `AVROK_Bill_${safeNo}_${stamp}.pdf`;
 }
 
-// Bill numbers are sequential (0001, 0002, ...). The last issued number is kept
-// per user in localStorage and only advances when a bill is actually saved.
+// Bill number: ACS/BILL/<year>/<0001>, sequence restarts every calendar year.
+// ACS = AVROK AC SERVICE. The last issued number is kept per user and per year,
+// and only advances when a bill is actually saved.
 const BILL_SEQ_KEY = 'avrok_bill_seq';
-let billSeqMemory = 0; // fallback when browser storage is blocked
+const BILL_NO_PREFIX = 'ACS/BILL';
+let billSeqMemory = {}; // fallback when browser storage is blocked, keyed by year
 
-function getBillSeqStorageKey(){
-  return user && user.uid ? (BILL_SEQ_KEY + '_' + user.uid) : BILL_SEQ_KEY;
+function getBillSeqStorageKey(year){
+  const user = window.currentFirebaseUser;
+  const base = BILL_SEQ_KEY + '_' + year;
+  return user && user.uid ? (base + '_' + user.uid) : base;
 }
-
-function getLastBillSeq(){
+function getLastBillSeq(year){
+  const mem = billSeqMemory[year] || 0;
   try {
-    const n = parseInt(localStorage.getItem(getBillSeqStorageKey()) || '0', 10);
-    return isNaN(n) ? billSeqMemory : Math.max(n, billSeqMemory);
+    const n = parseInt(localStorage.getItem(getBillSeqStorageKey(year)) || '0', 10);
+    return isNaN(n) ? mem : Math.max(n, mem);
   } catch(e){
-    return billSeqMemory;
+    return mem;
   }
 }
-
-function setLastBillSeq(n){
-  billSeqMemory = Math.max(billSeqMemory, n);
-  try { localStorage.setItem(getBillSeqStorageKey(), String(getLastBillSeq())); } catch(e){}
+function setLastBillSeq(year, n){
+  billSeqMemory[year] = Math.max(billSeqMemory[year] || 0, n);
+  try { localStorage.setItem(getBillSeqStorageKey(year), String(getLastBillSeq(year))); } catch(e){}
 }
-
+function formatBillNo(year, seq){
+  return `${BILL_NO_PREFIX}/${year}/${String(seq).padStart(4, '0')}`;
+}
 function generateNextBillNo(){
-  const next = getLastBillSeq() + 1;
-  document.getElementById('sno').value = String(next).padStart(4, '0');
+  const year = String(new Date().getFullYear());
+  const next = getLastBillSeq(year) + 1;
+  document.getElementById('sno').value = formatBillNo(year, next);
 }
 
 function toRoman(num){
@@ -3462,7 +3471,7 @@ function downloadQR(openFile = true){
   // actually finish BEFORE hiding the on-screen fullscreen QR — capturing
   // after it's hidden produces a blank/failed image.
   return html2canvas(qrDiv, {scale: 2, backgroundColor: '#ffffff'}).then(canvas => {
-    const filename = `AVROK_UPI_QR_${billNo}.png`;
+    const filename = `AVROK_UPI_QR_${String(billNo).replace(/[\/\\]/g, '-')}.png`;
     return new Promise(resolve => {
       canvas.toBlob(blob => {
         try {
