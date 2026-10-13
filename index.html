@@ -1696,12 +1696,12 @@
   <div class="qz-panel">
     <h2>Photos (optional)</h2>
     <div class="qz-grid2">
-      <div class="qz-field"><label>ID Card - Front</label><input type="file" id="qzPhoto1" accept="image/*" onchange="handleQuotPhoto(0, this)"><img id="qzPhotoPv1" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
-      <div class="qz-field"><label>ID Card - Back</label><input type="file" id="qzPhoto2" accept="image/*" onchange="handleQuotPhoto(1, this)"><img id="qzPhotoPv2" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
-      <div class="qz-field"><label>Customer Photo</label><input type="file" id="qzPhoto3" accept="image/*" onchange="handleQuotPhoto(2, this)"><img id="qzPhotoPv3" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
-      <div class="qz-field"><label>Work Photo</label><input type="file" id="qzPhoto4" accept="image/*" onchange="handleQuotPhoto(3, this)"><img id="qzPhotoPv4" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
+      <div class="qz-field"><label>1. Customer Photo</label><input type="file" id="qzPhoto1" accept="image/*" onchange="handleQuotPhoto(0, this)"><img id="qzPhotoPv1" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
+      <div class="qz-field"><label>2. ID Card - Front</label><input type="file" id="qzPhoto2" accept="image/*" onchange="handleQuotPhoto(1, this)"><img id="qzPhotoPv2" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
+      <div class="qz-field"><label>3. ID Card - Back</label><input type="file" id="qzPhoto3" accept="image/*" onchange="handleQuotPhoto(2, this)"><img id="qzPhotoPv3" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
+      <div class="qz-field"><label>4. Work Place Photo</label><input type="file" id="qzPhoto4" accept="image/*" onchange="handleQuotPhoto(3, this)"><img id="qzPhotoPv4" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
     </div>
-    <p style="font-size:12px; color:#666; margin:6px 0 0;">Ye photos quotation PDF ke sath ek alag page par jud jayengi.</p>
+    <p style="font-size:12px; color:#666; margin:6px 0 0;">Ye photos quotation PDF ke neeche alag page par is order mein aayengi: Customer → ID Card (Front, Back) → Work Place.</p>
   </div>
 
   <!-- ============ ITEMS ============ -->
@@ -4021,48 +4021,62 @@ function clearQuotPhotos(){
   });
 }
 
-// Adds a page to the quotation PDF: ID card front & back in one row,
-// then customer photo and work photo side by side in their own labelled row.
+// Draws one photo card: navy header bar with label, photo fitted inside a thin frame.
+function quotDrawPhotoCard(pdf, x, y, w, label, p, innerH){
+  const headerH = 7;
+  const cardH = headerH + innerH + 4;
+  pdf.setDrawColor(200, 210, 225); pdf.setLineWidth(0.3);
+  pdf.setFillColor(255, 255, 255);
+  pdf.rect(x, y, w, cardH, 'FD');
+  pdf.setFillColor(26, 62, 140);
+  pdf.rect(x, y, w, headerH, 'F');
+  pdf.setFont('DejaVuSans', 'bold'); pdf.setFontSize(9); pdf.setTextColor(255, 255, 255);
+  pdf.text(label, x + 3, y + 4.8);
+  pdf.setTextColor(20, 33, 61);
+  const areaW = w - 6, top = y + headerH + 2;
+  if(p){
+    const k = Math.min(areaW / p.w, innerH / p.h);
+    const iw = p.w * k, ih = p.h * k;
+    pdf.addImage(p.dataUrl, 'JPEG', x + (w - iw) / 2, top + (innerH - ih) / 2, iw, ih, undefined, 'FAST');
+  } else {
+    pdf.setFont('DejaVuSans', 'normal'); pdf.setFontSize(8); pdf.setTextColor(140, 140, 140);
+    pdf.text('Not attached', x + w / 2, top + innerH / 2 + 1, { align: 'center' });
+    pdf.setTextColor(20, 33, 61);
+  }
+  return cardH;
+}
+
+// Quotation PDF photo page, in this order: Customer photo, ID card front & back, Work place photo.
 function appendQuotPhotosPage(pdf, qNo){
-  const [front, back, customer, work] = window.quotPhotos || [];
-  if(!front && !back && !customer && !work) return;
+  const [customer, front, back, work] = window.quotPhotos || [];
+  if(!customer && !front && !back && !work) return;
 
   pdf.addPage('a4', 'p');
-  pdf.setFont('DejaVuSans','bold'); pdf.setFontSize(14);
-  pdf.text('ID CARD, CUSTOMER & WORK PHOTOS', 105, 18, { align: 'center' });
-  pdf.setFont('DejaVuSans','normal'); pdf.setFontSize(9);
-  pdf.text('Quotation No. ' + (qNo || ''), 10, 25);
+  pdf.setFillColor(26, 62, 140);
+  pdf.rect(10, 10, 190, 14, 'F');
+  pdf.setFont('DejaVuSans', 'bold'); pdf.setFontSize(13); pdf.setTextColor(255, 255, 255);
+  pdf.text('CUSTOMER, ID CARD & WORK PLACE PHOTOS', 105, 19, { align: 'center' });
+  pdf.setFont('DejaVuSans', 'normal'); pdf.setFontSize(9); pdf.setTextColor(20, 33, 61);
+  pdf.text('Quotation No. ' + (qNo || ''), 10, 30);
 
-  const fit = (p, maxW, maxH) => {
-    const k = Math.min(maxW / p.w, maxH / p.h);
-    return { w: p.w * k, h: p.h * k };
-  };
-  const half = 92;
-
-  // one row of up to two photos, each with its own label
-  const row = (y, items, maxH) => {
-    items.forEach(([label, p], col) => {
-      const x = 10 + col * (half + 6);
-      pdf.setFont('DejaVuSans','bold'); pdf.setFontSize(9);
-      pdf.text(label, x, y);
-      if(p){
-        const d = fit(p, half, maxH);
-        pdf.addImage(p.dataUrl, 'JPEG', x + (half - d.w) / 2, y + 3, d.w, d.h, undefined, 'FAST');
-      } else {
-        pdf.setDrawColor(180); pdf.rect(x, y + 3, half, maxH * 0.6);
-        pdf.setFont('DejaVuSans','normal'); pdf.text('Not attached', x + half/2, y + 3 + maxH * 0.3, { align: 'center' });
-      }
-    });
-  };
-
-  let y = 32;
+  let y = 34;
+  if(customer){
+    y += quotDrawPhotoCard(pdf, 10, y, 190, '1. CUSTOMER PHOTO', customer, 70) + 6;
+  }
   if(front || back){
-    row(y, [['ID Card - Front', front], ['ID Card - Back', back]], 70);
-    y += 84;
+    const half = 92;
+    quotDrawPhotoCard(pdf, 10, y, half, '2. ID CARD - FRONT', front, 52);
+    quotDrawPhotoCard(pdf, 10 + half + 6, y, half, '2. ID CARD - BACK', back, 52);
+    y += 7 + 52 + 4 + 6;
   }
-  if(customer || work){
-    row(y, [['Customer Photo', customer], ['Work Photo', work]], 120);
+  if(work){
+    quotDrawPhotoCard(pdf, 10, y, 190, '3. WORK PLACE PHOTO', work, 70);
   }
+
+  pdf.setTextColor(20, 33, 61);
+  pdf.setFont('DejaVuSans', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(120, 120, 120);
+  pdf.text('AVROK AC SERVICE', 105, 290, { align: 'center' });
+  pdf.setTextColor(20, 33, 61);
 }
 
 function quotDownloadPDF(){
