@@ -1610,6 +1610,11 @@
     </div>
     <div class="grid2">
       <div class="field">
+        <label>Customer photo (customer / site ki photo)</label>
+        <input type="file" id="custFile" accept="image/*" onchange="handleCustomerPhoto(this)">
+        <img id="custPreview" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;">
+      </div>
+      <div class="field">
         <label>Work photo 1</label>
         <input type="file" id="workFile1" accept="image/*" onchange="handleWorkPhoto(1, this)">
         <img id="workPreview1" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;">
@@ -1693,7 +1698,8 @@
     <div class="qz-grid2">
       <div class="qz-field"><label>ID Card - Front</label><input type="file" id="qzPhoto1" accept="image/*" onchange="handleQuotPhoto(0, this)"><img id="qzPhotoPv1" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
       <div class="qz-field"><label>ID Card - Back</label><input type="file" id="qzPhoto2" accept="image/*" onchange="handleQuotPhoto(1, this)"><img id="qzPhotoPv2" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
-      <div class="qz-field"><label>Customer / Work Photo</label><input type="file" id="qzPhoto3" accept="image/*" onchange="handleQuotPhoto(2, this)"><img id="qzPhotoPv3" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
+      <div class="qz-field"><label>Customer Photo</label><input type="file" id="qzPhoto3" accept="image/*" onchange="handleQuotPhoto(2, this)"><img id="qzPhotoPv3" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
+      <div class="qz-field"><label>Work Photo</label><input type="file" id="qzPhoto4" accept="image/*" onchange="handleQuotPhoto(3, this)"><img id="qzPhotoPv4" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
     </div>
     <p style="font-size:12px; color:#666; margin:6px 0 0;">Ye photos quotation PDF ke sath ek alag page par jud jayengi.</p>
   </div>
@@ -2166,6 +2172,7 @@ function prepareCompanyHeading(){
 
 // ---------------- Work done photos + description (added as a page after the bill) ----------------
 window.workPhotos = [null, null];
+window.customerPhoto = null;
 
 function readWorkPhoto(file){
   return new Promise((resolve, reject) => {
@@ -2198,8 +2205,24 @@ function handleWorkPhoto(i, input){
   }).catch(() => alert('Photo load nahi hui, dobara try karein.'));
 }
 
+function handleCustomerPhoto(input){
+  const f = input.files && input.files[0];
+  if(!f) return;
+  readWorkPhoto(f).then(p => {
+    window.customerPhoto = p;
+    const pv = document.getElementById('custPreview');
+    pv.src = p.dataUrl;
+    pv.style.display = 'block';
+  }).catch(() => alert('Photo load nahi hui, dobara try karein.'));
+}
+
 function clearWorkPhotos(){
   window.workPhotos = [null, null];
+  window.customerPhoto = null;
+  const cp = document.getElementById('custPreview');
+  const cf = document.getElementById('custFile');
+  if(cp){ cp.removeAttribute('src'); cp.style.display = 'none'; }
+  if(cf){ cf.value = ''; }
   [1, 2].forEach(i => {
     const pv = document.getElementById('workPreview' + i);
     const fi = document.getElementById('workFile' + i);
@@ -2210,40 +2233,59 @@ function clearWorkPhotos(){
   if(d) d.value = '';
 }
 
-// Adds a page after the bill with the work description and the work photos.
+// Adds a page after the bill: customer photo, then work description and work photos (kept separate).
 function appendWorkPhotosPage(pdf, billNo){
+  const customer = window.customerPhoto || null;
   const photos = (window.workPhotos || []).filter(Boolean);
   const desc = (document.getElementById('workDesc').value || '').trim();
-  if(!photos.length && !desc) return;
+  if(!customer && !photos.length && !desc) return;
 
   pdf.addPage('a4', 'p');
   pdf.setFont(undefined, 'bold');
   pdf.setFontSize(16);
-  pdf.text('WORK DONE DETAILS', 105, 18, { align: 'center' });
+  pdf.text('SERVICE DETAILS & PHOTOS', 105, 18, { align: 'center' });
   pdf.setFont(undefined, 'normal');
   pdf.setFontSize(10);
   pdf.text('Bill No. ' + (billNo || ''), 10, 26);
 
   let y = 34;
-  if(desc){
-    pdf.setFontSize(11);
-    const lines = pdf.splitTextToSize(desc, 190);
-    pdf.text(lines, 10, y);
-    y += lines.length * 5 + 6;
+  const fit = (p, maxW, maxH) => {
+    const k = Math.min(maxW / p.w, maxH / p.h);
+    return { w: p.w * k, h: p.h * k };
+  };
+
+  if(customer){
+    pdf.setFont(undefined, 'bold'); pdf.setFontSize(11);
+    pdf.text('Customer Photo', 10, y);
+    const d = fit(customer, 190, 95);
+    pdf.addImage(customer.dataUrl, 'JPEG', 10 + (190 - d.w) / 2, y + 3, d.w, d.h, undefined, 'FAST');
+    y += d.h + 14;
   }
 
-  photos.forEach((p, i) => {
-    const remaining = photos.length - i;
-    const avail = (280 - y) / remaining - 8;
-    const maxH = Math.min(125, avail);
-    const maxW = 190;
-    const k = Math.min(maxW / p.w, maxH / p.h);
-    const w = p.w * k, h = p.h * k;
-    const x = 10 + (maxW - w) / 2;
-    pdf.addImage(p.dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
-    y += h + 8;
-  });
+  if(desc){
+    pdf.setFont(undefined, 'bold'); pdf.setFontSize(11);
+    pdf.text('Work Done', 10, y);
+    pdf.setFont(undefined, 'normal'); pdf.setFontSize(10);
+    const lines = pdf.splitTextToSize(desc, 190);
+    pdf.text(lines, 10, y + 6);
+    y += 6 + lines.length * 5 + 8;
+  }
 
+  if(photos.length){
+    pdf.setFont(undefined, 'bold'); pdf.setFontSize(11);
+    pdf.text('Work Photos', 10, y);
+    y += 4;
+    photos.forEach((p, i) => {
+      const remaining = photos.length - i;
+      const avail = (282 - y) / remaining - 8;
+      const maxH = Math.max(40, Math.min(115, avail));
+      const d = fit(p, 190, maxH);
+      pdf.addImage(p.dataUrl, 'JPEG', 10 + (190 - d.w) / 2, y, d.w, d.h, undefined, 'FAST');
+      y += d.h + 8;
+    });
+  }
+
+  pdf.setFont(undefined, 'normal');
   pdf.setFontSize(9);
   pdf.text('AVROK AC SERVICE', 105, 290, { align: 'center' });
 }
@@ -3956,7 +3998,7 @@ function quotDownloadImage(){
   });
 }
 // ---------------- Quotation photos (ID card front/back, customer/work photo) ----------------
-window.quotPhotos = [null, null, null];
+window.quotPhotos = [null, null, null, null];
 
 function handleQuotPhoto(i, input){
   const f = input.files && input.files[0];
@@ -3970,8 +4012,8 @@ function handleQuotPhoto(i, input){
 }
 
 function clearQuotPhotos(){
-  window.quotPhotos = [null, null, null];
-  [0,1,2].forEach(i => {
+  window.quotPhotos = [null, null, null, null];
+  [0,1,2,3].forEach(i => {
     const pv = document.getElementById('qzPhotoPv' + (i+1));
     const fi = document.getElementById('qzPhoto' + (i+1));
     if(pv){ pv.removeAttribute('src'); pv.style.display = 'none'; }
@@ -3979,14 +4021,15 @@ function clearQuotPhotos(){
   });
 }
 
-// Adds a page to the quotation PDF: ID card front & back side by side, then the customer/work photo.
+// Adds a page to the quotation PDF: ID card front & back in one row,
+// then customer photo and work photo side by side in their own labelled row.
 function appendQuotPhotosPage(pdf, qNo){
-  const [front, back, work] = window.quotPhotos || [];
-  if(!front && !back && !work) return;
+  const [front, back, customer, work] = window.quotPhotos || [];
+  if(!front && !back && !customer && !work) return;
 
   pdf.addPage('a4', 'p');
   pdf.setFont('DejaVuSans','bold'); pdf.setFontSize(14);
-  pdf.text('ID CARD & WORK PHOTOS', 105, 18, { align: 'center' });
+  pdf.text('ID CARD, CUSTOMER & WORK PHOTOS', 105, 18, { align: 'center' });
   pdf.setFont('DejaVuSans','normal'); pdf.setFontSize(9);
   pdf.text('Quotation No. ' + (qNo || ''), 10, 25);
 
@@ -3994,32 +4037,31 @@ function appendQuotPhotosPage(pdf, qNo){
     const k = Math.min(maxW / p.w, maxH / p.h);
     return { w: p.w * k, h: p.h * k };
   };
-
-  let y = 32;
   const half = 92;
-  const idPair = [['ID Card - Front', front], ['ID Card - Back', back]];
-  if(front || back){
-    idPair.forEach((pair, col) => {
-      const [label, p] = pair;
+
+  // one row of up to two photos, each with its own label
+  const row = (y, items, maxH) => {
+    items.forEach(([label, p], col) => {
       const x = 10 + col * (half + 6);
       pdf.setFont('DejaVuSans','bold'); pdf.setFontSize(9);
       pdf.text(label, x, y);
       if(p){
-        const d = fit(p, half, 70);
+        const d = fit(p, half, maxH);
         pdf.addImage(p.dataUrl, 'JPEG', x + (half - d.w) / 2, y + 3, d.w, d.h, undefined, 'FAST');
       } else {
-        pdf.setDrawColor(180); pdf.rect(x, y + 3, half, 60);
-        pdf.setFont('DejaVuSans','normal'); pdf.text('Not attached', x + half/2, y + 33, { align: 'center' });
+        pdf.setDrawColor(180); pdf.rect(x, y + 3, half, maxH * 0.6);
+        pdf.setFont('DejaVuSans','normal'); pdf.text('Not attached', x + half/2, y + 3 + maxH * 0.3, { align: 'center' });
       }
     });
-    y += 80;
-  }
+  };
 
-  if(work){
-    pdf.setFont('DejaVuSans','bold'); pdf.setFontSize(9);
-    pdf.text('Customer / Work Photo', 10, y);
-    const d = fit(work, 190, 170);
-    pdf.addImage(work.dataUrl, 'JPEG', 10 + (190 - d.w) / 2, y + 3, d.w, d.h, undefined, 'FAST');
+  let y = 32;
+  if(front || back){
+    row(y, [['ID Card - Front', front], ['ID Card - Back', back]], 70);
+    y += 84;
+  }
+  if(customer || work){
+    row(y, [['Customer Photo', customer], ['Work Photo', work]], 120);
   }
 }
 
@@ -4603,7 +4645,7 @@ function quotHistoryPdf(qNo){
     quotLiveDateISO = rec.date || quotLiveDateISO;
     quotLiveTimeStr = rec.time || quotLiveTimeStr;
     quotLoadForm(rec);
-    window.quotPhotos = [null, null, null];   // photos are not stored in history
+    window.quotPhotos = [null, null, null, null];   // photos are not stored in history
     quotRenderSlip();
     quotDownloadPDF();
   } finally {
