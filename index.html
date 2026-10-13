@@ -1687,6 +1687,17 @@
     </div>
   </div>
 
+  <!-- ============ PHOTOS ============ -->
+  <div class="qz-panel">
+    <h2>Photos (optional)</h2>
+    <div class="qz-grid2">
+      <div class="qz-field"><label>ID Card - Front</label><input type="file" id="qzPhoto1" accept="image/*" onchange="handleQuotPhoto(0, this)"><img id="qzPhotoPv1" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
+      <div class="qz-field"><label>ID Card - Back</label><input type="file" id="qzPhoto2" accept="image/*" onchange="handleQuotPhoto(1, this)"><img id="qzPhotoPv2" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
+      <div class="qz-field"><label>Customer / Work Photo</label><input type="file" id="qzPhoto3" accept="image/*" onchange="handleQuotPhoto(2, this)"><img id="qzPhotoPv3" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;"></div>
+    </div>
+    <p style="font-size:12px; color:#666; margin:6px 0 0;">Ye photos quotation PDF ke sath ek alag page par jud jayengi.</p>
+  </div>
+
   <!-- ============ ITEMS ============ -->
   <div class="qz-panel">
     <h2>Items</h2>
@@ -3925,6 +3936,7 @@ function quotGenerateQuotationPDF(){
   const total = quotRenderSlip();
   quotDownloadPDF();
   quotSaveToHistory(total);
+  clearQuotPhotos();
   quotGenerateNextQNo();
   quotRenderSlip();
 }
@@ -3943,6 +3955,74 @@ function quotDownloadImage(){
     document.body.removeChild(link);
   });
 }
+// ---------------- Quotation photos (ID card front/back, customer/work photo) ----------------
+window.quotPhotos = [null, null, null];
+
+function handleQuotPhoto(i, input){
+  const f = input.files && input.files[0];
+  if(!f) return;
+  readWorkPhoto(f).then(p => {
+    window.quotPhotos[i] = p;
+    const pv = document.getElementById('qzPhotoPv' + (i+1));
+    pv.src = p.dataUrl;
+    pv.style.display = 'block';
+  }).catch(() => alert('Photo load nahi hui, dobara try karein.'));
+}
+
+function clearQuotPhotos(){
+  window.quotPhotos = [null, null, null];
+  [0,1,2].forEach(i => {
+    const pv = document.getElementById('qzPhotoPv' + (i+1));
+    const fi = document.getElementById('qzPhoto' + (i+1));
+    if(pv){ pv.removeAttribute('src'); pv.style.display = 'none'; }
+    if(fi){ fi.value = ''; }
+  });
+}
+
+// Adds a page to the quotation PDF: ID card front & back side by side, then the customer/work photo.
+function appendQuotPhotosPage(pdf, qNo){
+  const [front, back, work] = window.quotPhotos || [];
+  if(!front && !back && !work) return;
+
+  pdf.addPage('a4', 'p');
+  pdf.setFont('DejaVuSans','bold'); pdf.setFontSize(14);
+  pdf.text('ID CARD & WORK PHOTOS', 105, 18, { align: 'center' });
+  pdf.setFont('DejaVuSans','normal'); pdf.setFontSize(9);
+  pdf.text('Quotation No. ' + (qNo || ''), 10, 25);
+
+  const fit = (p, maxW, maxH) => {
+    const k = Math.min(maxW / p.w, maxH / p.h);
+    return { w: p.w * k, h: p.h * k };
+  };
+
+  let y = 32;
+  const half = 92;
+  const idPair = [['ID Card - Front', front], ['ID Card - Back', back]];
+  if(front || back){
+    idPair.forEach((pair, col) => {
+      const [label, p] = pair;
+      const x = 10 + col * (half + 6);
+      pdf.setFont('DejaVuSans','bold'); pdf.setFontSize(9);
+      pdf.text(label, x, y);
+      if(p){
+        const d = fit(p, half, 70);
+        pdf.addImage(p.dataUrl, 'JPEG', x + (half - d.w) / 2, y + 3, d.w, d.h, undefined, 'FAST');
+      } else {
+        pdf.setDrawColor(180); pdf.rect(x, y + 3, half, 60);
+        pdf.setFont('DejaVuSans','normal'); pdf.text('Not attached', x + half/2, y + 33, { align: 'center' });
+      }
+    });
+    y += 80;
+  }
+
+  if(work){
+    pdf.setFont('DejaVuSans','bold'); pdf.setFontSize(9);
+    pdf.text('Customer / Work Photo', 10, y);
+    const d = fit(work, 190, 170);
+    pdf.addImage(work.dataUrl, 'JPEG', 10 + (190 - d.w) / 2, y + 3, d.w, d.h, undefined, 'FAST');
+  }
+}
+
 function quotDownloadPDF(){
   try{
     const { jsPDF } = window.jspdf;
@@ -4219,6 +4299,7 @@ function quotDownloadPDF(){
     pdf.text('1. No warranty on general service. Manufacturer warranty applies to new parts only.', MX, footerBottom+9);
     pdf.text('2. Any extra work/parts found during service will be charged separately.', MX, footerBottom+12.5);
 
+    appendQuotPhotosPage(pdf, qNo);
     pdf.save(`Quotation_${qNo || 'draft'}.pdf`);
   }catch(err){
     console.error('PDF generation failed:', err);
