@@ -1764,7 +1764,7 @@
           <div class="qz-s-party-card">
             <div class="qz-row"><span class="qz-lbl">M/s.</span><span class="qz-val" id="qz-outCustName"></span></div>
             <div class="qz-row"><span class="qz-lbl">Address:</span><span class="qz-val" id="qz-outCustAddr"></span></div>
-            <div class="qz-row" id="qz-outMobRow"><span class="qz-lbl">Mobile:</span><span class="qz-val" id="qz-outCustMobile"></span></div>
+            <div class="qz-row" id="qz-outMobRow"><span class="qz-lbl">Mobile:</span><span class="qz-val" id="qz-outCustMobile" style="font-size:16px; font-weight:800;"></span></div>
           </div>
         </div>
         <div class="qz-s-itemswrap">
@@ -4269,14 +4269,16 @@ function quotDownloadPDF(){
     pdf.text(addrLines, MX+adW, PARTY_Y+15);
 
     const addrExtra = Math.max(0,(addrLines.length-1))*4.5;
-    let mobLineY = PARTY_Y+15+addrExtra+7;
-    pdf.setFont('DejaVuSans','bold'); setColor('text', COL_MAROON);
+    // Mobile number is printed large and bold so it is easy to read
+    let mobLineY = PARTY_Y+15+addrExtra+9;
+    pdf.setFont('DejaVuSans','bold'); pdf.setFontSize(10); setColor('text', COL_MAROON);
     pdf.text('Mobile:', MX, mobLineY);
     const mobW = pdf.getTextWidth('Mobile:  ');
-    pdf.setFont('DejaVuSans','normal'); setColor('text', COL_MIDGRAY);
+    pdf.setFontSize(13); setColor('text', COL_MIDGRAY);
     pdf.text(custMobile || '-', MX+mobW, mobLineY);
+    pdf.setFontSize(9.5);
 
-    const PARTY_H = 20 + addrExtra + 7;
+    const PARTY_H = 27 + addrExtra;
     setColor('draw', [238,238,238]); pdf.setLineWidth(0.2);
     pdf.line(MX, PARTY_Y+PARTY_H, PAGE_W-MX, PARTY_Y+PARTY_H);
 
