@@ -4382,7 +4382,8 @@ function quotDownloadPDF(){
     pdf.text('2. Any extra work/parts found during service will be charged separately.', MX, footerBottom+12.5);
 
     appendQuotPhotosPage(pdf, qNo);
-    pdf.save(`Quotation_${quotFileSafeNo(qNo)}.pdf`);
+    // Same path as the bill: opens the PDF after it is made (Median app and browser)
+    downloadPDF(pdf, `Quotation_${quotFileSafeNo(qNo)}.pdf`, true);
   }catch(err){
     console.error('PDF generation failed:', err);
     alert('Something went wrong while generating the PDF. Please try again.');
