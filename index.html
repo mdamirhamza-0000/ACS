@@ -3811,30 +3811,45 @@ function quotFmtDateForSlipFull(iso){
 quotUpdateLiveClock();
 setInterval(quotUpdateLiveClock, 1000);
 
-// ---------------- Sequential quotation number (0001, 0002, ...) ----------------
-// The last issued number is kept per user and only advances when a quotation is saved.
+// ---------------- Quotation number: ACS/QTN/<year>/<0001>, sequence restarts every calendar year ----------------
+// ACS = AVROK AC SERVICE, QTN = quotation. The last issued number is kept per user and per year,
+// and only advances when a quotation is saved.
 const QUOT_SEQ_KEY = 'avrok_quot_seq';
-let quotSeqMemory = 0; // fallback when browser storage is blocked
+const QUOT_NO_PREFIX = 'ACS/QTN';
+let quotSeqMemory = {}; // fallback when browser storage is blocked, keyed by year
 
-function quotGetSeqStorageKey(){
-  const user = window.currentFirebaseUser;
-  return user && user.uid ? (QUOT_SEQ_KEY + '_' + user.uid) : QUOT_SEQ_KEY;
+function quotCurrentYear(){
+  return String(quotLiveDateISO || quotTodayISO()).slice(0, 4);
 }
-function quotGetLastSeq(){
+function quotGetSeqStorageKey(year){
+  const user = window.currentFirebaseUser;
+  const base = QUOT_SEQ_KEY + '_' + year;
+  return user && user.uid ? (base + '_' + user.uid) : base;
+}
+function quotGetLastSeq(year){
+  const mem = quotSeqMemory[year] || 0;
   try{
-    const n = parseInt(localStorage.getItem(quotGetSeqStorageKey()) || '0', 10);
-    return isNaN(n) ? quotSeqMemory : Math.max(n, quotSeqMemory);
+    const n = parseInt(localStorage.getItem(quotGetSeqStorageKey(year)) || '0', 10);
+    return isNaN(n) ? mem : Math.max(n, mem);
   }catch(e){
-    return quotSeqMemory;
+    return mem;
   }
 }
-function quotSetLastSeq(n){
-  quotSeqMemory = Math.max(quotSeqMemory, n);
-  try{ localStorage.setItem(quotGetSeqStorageKey(), String(quotGetLastSeq())); }catch(e){}
+function quotSetLastSeq(year, n){
+  quotSeqMemory[year] = Math.max(quotSeqMemory[year] || 0, n);
+  try{ localStorage.setItem(quotGetSeqStorageKey(year), String(quotGetLastSeq(year))); }catch(e){}
+}
+function quotFormatNo(year, seq){
+  return `${QUOT_NO_PREFIX}/${year}/${String(seq).padStart(4, '0')}`;
 }
 function quotGenerateNextQNo(){
-  const next = quotGetLastSeq() + 1;
-  document.getElementById('qz-qNo').value = String(next).padStart(4, '0');
+  const year = quotCurrentYear();
+  const next = quotGetLastSeq(year) + 1;
+  document.getElementById('qz-qNo').value = quotFormatNo(year, next);
+}
+// Safe for file names: "/" is not allowed in file names.
+function quotFileSafeNo(qNo){
+  return String(qNo || 'draft').replace(/[\/\\]/g, '-');
 }
 quotGenerateNextQNo();
 
@@ -3990,7 +4005,7 @@ function quotCaptureSlip(scale){
 function quotDownloadImage(){
   quotCaptureSlip(2).then(canvas=>{
     const link = document.createElement('a');
-    link.download = `Quotation_${document.getElementById('qz-qNo').value||'draft'}.png`;
+    link.download = `Quotation_${quotFileSafeNo(document.getElementById('qz-qNo').value)}.png`;
     link.href = canvas.toDataURL('image/png');
     document.body.appendChild(link);
     link.click();
@@ -4356,7 +4371,7 @@ function quotDownloadPDF(){
     pdf.text('2. Any extra work/parts found during service will be charged separately.', MX, footerBottom+12.5);
 
     appendQuotPhotosPage(pdf, qNo);
-    pdf.save(`Quotation_${qNo || 'draft'}.pdf`);
+    pdf.save(`Quotation_${quotFileSafeNo(qNo)}.pdf`);
   }catch(err){
     console.error('PDF generation failed:', err);
     alert('Something went wrong while generating the PDF. Please try again.');
@@ -4464,7 +4479,7 @@ function quotDownloadQRImage(){
   const qrDiv = document.getElementById('qz-qrcodeDiv');
   html2canvas(qrDiv, {scale:2, backgroundColor:'#ffffff'}).then(canvas=>{
     const link = document.createElement('a');
-    link.download = `UPI_QR_${document.getElementById('qz-qNo').value||'draft'}.png`;
+    link.download = `UPI_QR_${quotFileSafeNo(document.getElementById('qz-qNo').value)}.png`;
     link.href = canvas.toDataURL('image/png');
     document.body.appendChild(link);
     link.click();
@@ -4565,8 +4580,11 @@ function quotGetHistoryStorageKey(){
   return user && user.uid ? ('avrok_quotation_history_' + user.uid) : quotSTORAGE_KEY;
 }
 function quotSaveToHistory(total){
-  const savedSeq = parseInt(document.getElementById('qz-qNo').value, 10);
-  if(!isNaN(savedSeq)) quotSetLastSeq(savedSeq);
+  const savedNo = document.getElementById('qz-qNo').value || '';
+  const parts = savedNo.split('/');
+  const savedYear = parts[2];
+  const savedSeq = parseInt(parts[3], 10);
+  if(savedYear && !isNaN(savedSeq)) quotSetLastSeq(savedYear, savedSeq);
   try{
     const key = quotGetHistoryStorageKey();
     let history = [];
