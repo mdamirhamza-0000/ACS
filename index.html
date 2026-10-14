@@ -735,6 +735,10 @@
   .inv-box { border: 2px solid #1a3e8c; border-radius: 4px; padding: 10px 14px; margin-bottom: 0; }
   .inv-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; font-weight: 600; }
   .inv-row span.line { font-weight: 400; }
+  .inv-cust-row { font-size: 17px; font-weight: 800; margin-bottom: 8px; }
+  .inv-cust-val { font-size: 17px; font-weight: 900; color: #14213d; }
+  .inv-phone-big { font-size: 18px; font-weight: 900; letter-spacing: .5px; }
+
   table#invTable {
     width: 100%;
     border-collapse: collapse;
@@ -1941,12 +1945,13 @@ theme isn't affected. downloadQR() captures this instead of the plain QR. -->
   </div>
 
   <div class="inv-address">📍 Khansa Mandi Shakti Park, Near Rock Ford School, Gurugram (HR) - 122001</div>
-  <div class="inv-contact">📞 M : +91-9155944307 &nbsp;|&nbsp; ✉ Email : akacelectrician@gmail.com</div>
+  <div class="inv-contact"><span class="inv-phone-big">📞 M : +91-9155944307</span> &nbsp;|&nbsp; ✉ Email : akacelectrician@gmail.com</div>
 
   <div class="inv-box">
     <div class="inv-row"><span>S. No. &nbsp;<b id="p_sno" style="color:red;"></b></span><span style="text-align:right;">Date : <span id="p_date" class="line"></span><br>Time : <span id="p_time" class="line"></span></span></div>
-    <div class="inv-row"><span>M/s. <span id="p_cust" class="line"></span></span></div>
-    <div class="inv-row"><span>Add. <span id="p_addr" class="line"></span></span></div>
+    <div class="inv-row inv-cust-row"><span>M/s. <span id="p_cust" class="inv-cust-val"></span></span></div>
+    <div class="inv-row inv-cust-row"><span>Add. <span id="p_addr" class="inv-cust-val"></span></span></div>
+    <div class="inv-row inv-cust-row"><span>Mobile : <span id="p_mobile" class="inv-cust-val"></span></span></div>
   </div>
   <div class="inv-box" style="border-top:none;">
     <div class="inv-row"><span>Product : <span id="p_product" class="line"></span></span><span>Model : <span id="p_model" class="line"></span></span></div>
@@ -2270,6 +2275,7 @@ function generateBill(openFile = true){
   document.getElementById('p_date').textContent = nowParts.date;
   document.getElementById('p_time').textContent = nowParts.time;
   document.getElementById('p_cust').textContent = document.getElementById('custName').value;
+  document.getElementById('p_mobile').textContent = document.getElementById('custMobile').value;
   document.getElementById('p_addr').textContent = document.getElementById('custAddr').value;
   document.getElementById('p_product').textContent = document.getElementById('product').value;
   document.getElementById('p_model').textContent = document.getElementById('model').value;
@@ -3027,6 +3033,7 @@ function redownloadBill(idx){
   document.getElementById('p_date').textContent = d;
   document.getElementById('p_time').textContent = t;
   document.getElementById('p_cust').textContent = rec.custName;
+  document.getElementById('p_mobile').textContent = rec.custMobile || '';
   document.getElementById('p_addr').textContent = rec.address;
   document.getElementById('p_product').textContent = rec.product;
   document.getElementById('p_model').textContent = rec.model;
