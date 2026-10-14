@@ -2358,7 +2358,7 @@ function generateBill(openFile = true){
     const imgWidth = pageWidth - 20;
     const imgHeight = canvas.height * imgWidth / canvas.width;
     pdf.addImage(imgData, 'JPEG', 10, 10, imgWidth, imgHeight, undefined, 'FAST');
-    const filename = buildBillFilename(currentSno, `${nowParts.date}, ${nowParts.time}`);
+    const filename = buildBillFilename(currentSno, `${nowParts.date}, ${nowParts.time}`, document.getElementById('custName').value);
     appendWorkPhotosPage(pdf, currentSno);
     downloadPDF(pdf, filename, openFile);
 
@@ -3078,7 +3078,7 @@ function redownloadBill(idx){
     const imgWidth = pageWidth - 20;
     const imgHeight = canvas.height * imgWidth / canvas.width;
     pdf.addImage(imgData, 'JPEG', 10, 10, imgWidth, imgHeight, undefined, 'FAST');
-    downloadPDF(pdf, buildBillFilename(rec.billNo, rec.dateTime));
+    downloadPDF(pdf, buildBillFilename(rec.billNo, rec.dateTime, rec.custName));
   });
 }
 
@@ -3104,7 +3104,8 @@ function downloadPDF(pdf, filename, openFile = true){
     if (window.median && window.median.share && window.median.share.downloadFile){
       const blob = pdf.output('blob');
       const blobUrl = URL.createObjectURL(blob);
-      window.median.share.downloadFile({ url: blobUrl, open: openFile });
+      // filename is passed so the saved file keeps its name (customer name + bill/quotation no.)
+      window.median.share.downloadFile({ url: blobUrl, open: openFile, filename: filename });
       return;
     }
   } catch(e){
@@ -3172,10 +3173,21 @@ function updateLiveClock(){
 }
 
 // Builds the PDF file name as: AVROK_Bill_<BillNumber>_<DD-MM-YYYY>_<HH-MM-SS-AMPM>.pdf
-function buildBillFilename(billNo, dateTimeStr){
+// Makes a customer name safe for a file name (no / \ : * ? " < > |), e.g. "Ram Kumar" -> "Ram-Kumar"
+function pdfSafeName(name){
+  return String(name || '')
+    .replace(/[\\/:*?"<>|\r\n]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60)
+    .replace(/ /g, '-');
+}
+// File name starts with the customer name, then the bill number: Customer-Name_ACS-BILL-2026-0001_<time>.pdf
+function buildBillFilename(billNo, dateTimeStr, custName){
   const stamp = (dateTimeStr || formatNow()).replace(/[/,: ]/g, '-');
   const safeNo = String(billNo || 'bill').replace(/[\/\\]/g, '-');
-  return `AVROK_Bill_${safeNo}_${stamp}.pdf`;
+  const who = pdfSafeName(custName) || 'Customer';
+  return `${who}_${safeNo}_${stamp}.pdf`;
 }
 
 // Bill number: ACS/BILL/<year>/<0001>, sequence restarts every calendar year.
@@ -4361,7 +4373,7 @@ function quotDownloadPDF(){
 
     appendQuotPhotosPage(pdf, qNo);
     // Same path as the bill: opens the PDF after it is made (Median app and browser)
-    downloadPDF(pdf, `Quotation_${quotFileSafeNo(qNo)}.pdf`, true);
+    downloadPDF(pdf, `${pdfSafeName(custName) || 'Customer'}_${quotFileSafeNo(qNo)}.pdf`, true);
   }catch(err){
     console.error('PDF generation failed:', err);
     alert('Something went wrong while generating the PDF. Please try again.');
