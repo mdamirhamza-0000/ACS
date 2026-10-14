@@ -1610,11 +1610,6 @@
     </div>
     <div class="grid2">
       <div class="field">
-        <label>Customer photo (customer / site ki photo)</label>
-        <input type="file" id="custFile" accept="image/*" onchange="handleCustomerPhoto(this)">
-        <img id="custPreview" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;">
-      </div>
-      <div class="field">
         <label>Work photo 1</label>
         <input type="file" id="workFile1" accept="image/*" onchange="handleWorkPhoto(1, this)">
         <img id="workPreview1" alt="" style="display:none; margin-top:8px; max-width:100%; border-radius:8px;">
@@ -2172,7 +2167,6 @@ function prepareCompanyHeading(){
 
 // ---------------- Work done photos + description (added as a page after the bill) ----------------
 window.workPhotos = [null, null];
-window.customerPhoto = null;
 
 function readWorkPhoto(file){
   return new Promise((resolve, reject) => {
@@ -2205,24 +2199,9 @@ function handleWorkPhoto(i, input){
   }).catch(() => alert('Photo load nahi hui, dobara try karein.'));
 }
 
-function handleCustomerPhoto(input){
-  const f = input.files && input.files[0];
-  if(!f) return;
-  readWorkPhoto(f).then(p => {
-    window.customerPhoto = p;
-    const pv = document.getElementById('custPreview');
-    pv.src = p.dataUrl;
-    pv.style.display = 'block';
-  }).catch(() => alert('Photo load nahi hui, dobara try karein.'));
-}
-
 function clearWorkPhotos(){
   window.workPhotos = [null, null];
-  window.customerPhoto = null;
-  const cp = document.getElementById('custPreview');
-  const cf = document.getElementById('custFile');
-  if(cp){ cp.removeAttribute('src'); cp.style.display = 'none'; }
-  if(cf){ cf.value = ''; }
+
   [1, 2].forEach(i => {
     const pv = document.getElementById('workPreview' + i);
     const fi = document.getElementById('workFile' + i);
@@ -2233,17 +2212,16 @@ function clearWorkPhotos(){
   if(d) d.value = '';
 }
 
-// Adds a page after the bill: customer photo, then work description and work photos (kept separate).
+// Adds a page after the bill with the work description and work photos.
 function appendWorkPhotosPage(pdf, billNo){
-  const customer = window.customerPhoto || null;
   const photos = (window.workPhotos || []).filter(Boolean);
   const desc = (document.getElementById('workDesc').value || '').trim();
-  if(!customer && !photos.length && !desc) return;
+  if(!photos.length && !desc) return;
 
   pdf.addPage('a4', 'p');
   pdf.setFont(undefined, 'bold');
   pdf.setFontSize(16);
-  pdf.text('SERVICE DETAILS & PHOTOS', 105, 18, { align: 'center' });
+  pdf.text('WORK DONE DETAILS', 105, 18, { align: 'center' });
   pdf.setFont(undefined, 'normal');
   pdf.setFontSize(10);
   pdf.text('Bill No. ' + (billNo || ''), 10, 26);
@@ -2253,14 +2231,6 @@ function appendWorkPhotosPage(pdf, billNo){
     const k = Math.min(maxW / p.w, maxH / p.h);
     return { w: p.w * k, h: p.h * k };
   };
-
-  if(customer){
-    pdf.setFont(undefined, 'bold'); pdf.setFontSize(11);
-    pdf.text('Customer Photo', 10, y);
-    const d = fit(customer, 190, 95);
-    pdf.addImage(customer.dataUrl, 'JPEG', 10 + (190 - d.w) / 2, y + 3, d.w, d.h, undefined, 'FAST');
-    y += d.h + 14;
-  }
 
   if(desc){
     pdf.setFont(undefined, 'bold'); pdf.setFontSize(11);
