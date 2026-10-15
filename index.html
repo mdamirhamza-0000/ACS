@@ -267,6 +267,8 @@
   onAuthStateChanged(fbAuth, (user) => {
     window.currentFirebaseUser = user || null;
     window.updateDrawerLoginBtn();
+    // Bill / quotation numbers depend on the account, so show the right next number now
+    if(typeof window.refreshDocumentNumbers === 'function') window.refreshDocumentNumbers();
     const loginScreen = document.getElementById('loginScreen');
     if(user) {
       if(loginScreen) loginScreen.style.display = 'none';
@@ -3202,14 +3204,28 @@ function getBillSeqStorageKey(year){
   const base = BILL_SEQ_KEY + '_' + year;
   return user && user.uid ? (base + '_' + user.uid) : base;
 }
+// Highest bill number already used in this year, from the saved history on this device / account.
+function maxSeqFromHistory(list, prefix, year){
+  let max = 0;
+  (list || []).forEach(r => {
+    const no = String((r && (r.billNo || r.qNo)) || '');
+    if(no.indexOf(prefix + '/' + year + '/') === 0){
+      const n = parseInt(no.split('/')[3], 10);
+      if(!isNaN(n) && n > max) max = n;
+    }
+  });
+  return max;
+}
 function getLastBillSeq(year){
   const mem = billSeqMemory[year] || 0;
+  let stored = 0;
   try {
     const n = parseInt(localStorage.getItem(getBillSeqStorageKey(year)) || '0', 10);
-    return isNaN(n) ? mem : Math.max(n, mem);
-  } catch(e){
-    return mem;
-  }
+    stored = isNaN(n) ? 0 : n;
+  } catch(e){}
+  let fromHistory = 0;
+  try { fromHistory = maxSeqFromHistory(getBillHistory(), BILL_NO_PREFIX, year); } catch(e){}
+  return Math.max(stored, mem, fromHistory);
 }
 function setLastBillSeq(year, n){
   billSeqMemory[year] = Math.max(billSeqMemory[year] || 0, n);
@@ -3827,12 +3843,14 @@ function quotGetSeqStorageKey(year){
 }
 function quotGetLastSeq(year){
   const mem = quotSeqMemory[year] || 0;
+  let stored = 0;
   try{
     const n = parseInt(localStorage.getItem(quotGetSeqStorageKey(year)) || '0', 10);
-    return isNaN(n) ? mem : Math.max(n, mem);
-  }catch(e){
-    return mem;
-  }
+    stored = isNaN(n) ? 0 : n;
+  }catch(e){}
+  let fromHistory = 0;
+  try { fromHistory = maxSeqFromHistory(quotGetHistory(), QUOT_NO_PREFIX, year); } catch(e){}
+  return Math.max(stored, mem, fromHistory);
 }
 function quotSetLastSeq(year, n){
   quotSeqMemory[year] = Math.max(quotSeqMemory[year] || 0, n);
@@ -4763,6 +4781,10 @@ quotUpdateLiveClock();
 setInterval(quotUpdateLiveClock, 1000);
 quotGenerateNextQNo();
 quotAddRow();
+window.refreshDocumentNumbers = function(){
+  try { generateNextBillNo(); } catch(e){ console.warn(e); }
+  try { if(document.getElementById('qz-qNo')) quotGenerateNextQNo(); } catch(e){ console.warn(e); }
+};
 
 </script>
 
