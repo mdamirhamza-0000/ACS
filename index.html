@@ -1651,14 +1651,6 @@
         <label>Model</label>
         <input type="text" id="model" placeholder="Model number">
       </div>
-      <div class="field">
-        <label>Unit Serial No. 1</label>
-        <input type="text" id="serial1">
-      </div>
-      <div class="field">
-        <label>Unit Serial No. 2</label>
-        <input type="text" id="serial2">
-      </div>
     </div>
   </div>
 
@@ -1732,14 +1724,16 @@
 
   <!-- ==================== QUOTATION GENERATOR (embedded mode) ==================== -->
   <div id="quotationFormView">
+    <div class="panel">
     <div id="docModeToggle2" style="display:flex; gap:10px; margin-bottom:16px;">
       <button type="button" id="billModeBtn2" onclick="window.setDocMode && window.setDocMode('bill')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:13px; cursor:pointer;">Bill Generator</button>
       <button type="button" id="quotationModeBtn2" onclick="window.setDocMode && window.setDocMode('quotation')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#1a3e8c; color:#fff; font-weight:700; font-size:13px; cursor:pointer;">Quotation Generator</button>
       <button type="button" id="ordersModeBtn2" onclick="window.setDocMode && window.setDocMode('orders')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:13px; cursor:pointer;">Service Orders<span class="ord-badge" style="display:none"></span></button>
     </div>
+    <h1>Quotation <span>Generator</span></h1>
+    <div class="qz-subtitle" style="margin-bottom:0;">Fill the form below, hit Generate — the quotation comes out in the challan-style design.</div>
+    </div>
     <div class="qz-app-wrap">
-  <h1>Quotation <span>Generator</span></h1>
-  <div class="qz-subtitle">Fill the form below, hit Generate — the quotation comes out in the challan-style design.</div>
 
   <!-- ============ COMPANY DETAILS (fixed) ============ -->
   <div class="qz-panel">
@@ -2030,7 +2024,6 @@ theme isn't affected. downloadQR() captures this instead of the plain QR. -->
   </div>
   <div class="inv-box" style="border-top:none;">
     <div class="inv-row"><span>Product : <span id="p_product" class="line"></span></span><span>Model : <span id="p_model" class="line"></span></span></div>
-    <div class="inv-row"><span>Unit Serial No. 1 : <span id="p_serial1" class="line"></span></span><span>2 : <span id="p_serial2" class="line"></span></span></div>
   </div>
 
   <table id="invTable">
@@ -2355,8 +2348,6 @@ function generateBill(openFile = true){
   document.getElementById('p_addr').textContent = document.getElementById('custAddr').value;
   document.getElementById('p_product').textContent = document.getElementById('product').value;
   document.getElementById('p_model').textContent = document.getElementById('model').value;
-  document.getElementById('p_serial1').textContent = document.getElementById('serial1').value;
-  document.getElementById('p_serial2').textContent = document.getElementById('serial2').value;
 
   const pBody = document.getElementById('p_itemsBody');
   pBody.innerHTML = '';
@@ -2534,8 +2525,6 @@ function newBillCreate(skipConfirm){
   document.getElementById('custAddr').value = '';
   document.getElementById('product').value = '';
   document.getElementById('model').value = '';
-  document.getElementById('serial1').value = '';
-  document.getElementById('serial2').value = '';
   clearWorkPhotos();
   rowCount = 0;
   document.getElementById('itemsBody').innerHTML = '';
@@ -3071,8 +3060,6 @@ function restoreBillToForm(idx){
   document.getElementById('custAddr').value = rec.address || '';
   document.getElementById('product').value = rec.product || '';
   document.getElementById('model').value = rec.model || '';
-  document.getElementById('serial1').value = '';
-  document.getElementById('serial2').value = '';
   clearWorkPhotos();
 
   const tbody = document.getElementById('itemsBody');
@@ -3113,8 +3100,6 @@ function redownloadBill(idx){
   document.getElementById('p_addr').textContent = rec.address;
   document.getElementById('p_product').textContent = rec.product;
   document.getElementById('p_model').textContent = rec.model;
-  document.getElementById('p_serial1').textContent = '';
-  document.getElementById('p_serial2').textContent = '';
 
   const pBody = document.getElementById('p_itemsBody');
   pBody.innerHTML = '';
