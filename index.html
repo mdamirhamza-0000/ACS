@@ -267,6 +267,7 @@
   onAuthStateChanged(fbAuth, (user) => {
     window.currentFirebaseUser = user || null;
     window.updateDrawerLoginBtn();
+    if(typeof window.refreshOrdersAccess === 'function') window.refreshOrdersAccess();
     // Bill / quotation numbers depend on the account, so show the right next number now
     if(typeof window.refreshDocumentNumbers === 'function') window.refreshDocumentNumbers();
     const loginScreen = document.getElementById('loginScreen');
@@ -351,6 +352,34 @@
     return encodeURIComponent(String(record.billNo || '') + '|' + String(record.dateTime || ''))
       .replace(/\./g, '%2E');
   }
+
+  // ---------------- SERVICE ORDERS (customers -> avrok-acs.kesug.com -> this app) ----------------
+  // Only this one Google account can read/manage orders. The real lock is in the
+  // Realtime Database rules; this check only decides what the app shows.
+  const ORDERS_ADMIN_EMAIL = 'avrok.ac.services.01@gmail.com';
+  window.ORDERS_ADMIN_EMAIL = ORDERS_ADMIN_EMAIL;
+  window.isOrdersAdmin = function(){
+    const u = window.currentFirebaseUser || fbAuth.currentUser;
+    return !!(u && u.email && u.emailVerified && u.email.toLowerCase() === ORDERS_ADMIN_EMAIL);
+  };
+  window.fetchServiceOrders = async function(){
+    if(!window.isOrdersAdmin()) throw new Error('not-admin');
+    const snap = await get(ref(fbDb, 'serviceOrders'));
+    const list = [];
+    if(snap.exists()){
+      snap.forEach(ch => { const v = ch.val(); if(v && typeof v === 'object') list.push(Object.assign({ id: ch.key }, v)); });
+    }
+    list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    return list;
+  };
+  window.setServiceOrderStatus = async function(id, status){
+    if(!window.isOrdersAdmin()) throw new Error('not-admin');
+    await update(ref(fbDb, 'serviceOrders/' + id), { status: status });
+  };
+  window.deleteServiceOrder = async function(id){
+    if(!window.isOrdersAdmin()) throw new Error('not-admin');
+    await remove(ref(fbDb, 'serviceOrders/' + id));
+  };
 
   window.saveBillToFirebase = async function(record){
     const user = window.currentFirebaseUser || fbAuth.currentUser;
@@ -1213,6 +1242,30 @@
 
 /* ==================== QUOTATION GENERATOR (embedded mode) ==================== */
 #quotationFormView{ display:none; }
+#ordersFormView{ display:none; }
+.ord-sub{font-size:13px;color:#667;margin:-4px 0 12px}
+.ord-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;color:#445;font-weight:600}
+.ord-bar button{border:2px solid #1a3e8c;background:#fff;color:#1a3e8c;border-radius:8px;padding:6px 12px;font-weight:700;font-size:13px;cursor:pointer}
+.ord-card{border:1px solid #dfe5f1;border-radius:12px;margin-bottom:10px;background:#fff;overflow:hidden}
+.ord-card.is-new{border-left:5px solid #e0a800}
+.ord-head{display:flex;gap:10px;align-items:center;padding:12px 14px;cursor:pointer}
+.ord-main{flex:1;min-width:0}
+.ord-name{font-weight:800;color:#1a3e8c;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ord-meta{font-size:12.5px;color:#667;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ord-pill{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;flex:none}
+.ord-pill.new{background:#fff3c4;color:#7a5a00}.ord-pill.done{background:#dff5e6;color:#1b7a3d}
+.ord-det{display:none;padding:0 14px 14px;border-top:1px dashed #dfe5f1}
+.ord-card.open .ord-det{display:block}
+.ord-row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #f0f2f7;font-size:14px}
+.ord-row b{flex:none;width:92px;color:#667;font-weight:600}
+.ord-row span{flex:1;word-break:break-word;color:#1c2540}
+.ord-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.ord-act a,.ord-act button{flex:1 1 auto;text-align:center;padding:10px 12px;border-radius:9px;border:2px solid #1a3e8c;background:#fff;color:#1a3e8c;font-weight:700;font-size:13px;cursor:pointer;text-decoration:none}
+.ord-act .wa{background:#25d366;border-color:#25d366;color:#fff}
+.ord-act .del{border-color:#d33;color:#d33}
+.ord-empty,.ord-lock{text-align:center;color:#667;padding:26px 10px;font-size:14px;line-height:1.55}
+.ord-lock button{margin-top:12px;padding:11px 18px;border-radius:10px;border:0;background:#1a3e8c;color:#fff;font-weight:700;font-size:14px;cursor:pointer}
+.ord-badge{display:inline-block;min-width:18px;padding:1px 6px;margin-left:4px;border-radius:999px;background:#e0a800;color:#111;font-size:11px;font-weight:800}
 
   * { box-sizing: border-box; }
   body {
@@ -1564,8 +1617,9 @@
   <div id="billFormView">
   <div class="panel">
     <div id="docModeToggle" style="display:flex; gap:10px; margin-bottom:16px;">
-      <button type="button" id="billModeBtn" onclick="window.setDocMode && window.setDocMode('bill')" style="flex:1; padding:12px 10px; border-radius:10px; border:2px solid #1a3e8c; background:#1a3e8c; color:#fff; font-weight:700; font-size:14px; cursor:pointer;">Bill Generator</button>
-      <button type="button" id="quotationModeBtn" onclick="window.setDocMode && window.setDocMode('quotation')" style="flex:1; padding:12px 10px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:14px; cursor:pointer;">Quotation Generator</button>
+      <button type="button" id="billModeBtn" onclick="window.setDocMode && window.setDocMode('bill')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#1a3e8c; color:#fff; font-weight:700; font-size:13px; cursor:pointer;">Bill Generator</button>
+      <button type="button" id="quotationModeBtn" onclick="window.setDocMode && window.setDocMode('quotation')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:13px; cursor:pointer;">Quotation Generator</button>
+      <button type="button" id="ordersModeBtn" onclick="window.setDocMode && window.setDocMode('orders')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:13px; cursor:pointer;">Service Orders<span class="ord-badge" style="display:none"></span></button>
     </div>
     <h2>Customer &amp; Bill Details</h2>
     <div class="grid2">
@@ -1658,11 +1712,30 @@
 
   <p style="font-size:12px; color:#777; text-align:center; margin-top:6px;">This software was created by Md. Amir Hamza, a core member of the Avrok Foundation.</p>
   </div>
+  <!-- ==================== SERVICE ORDERS (received from avrok-acs.kesug.com) ==================== -->
+  <div id="ordersFormView">
+  <div class="panel">
+    <div id="docModeToggle3" style="display:flex; gap:10px; margin-bottom:16px;">
+      <button type="button" id="billModeBtn3" onclick="window.setDocMode && window.setDocMode('bill')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:13px; cursor:pointer;">Bill Generator</button>
+      <button type="button" id="quotationModeBtn3" onclick="window.setDocMode && window.setDocMode('quotation')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:13px; cursor:pointer;">Quotation Generator</button>
+      <button type="button" id="ordersModeBtn3" onclick="window.setDocMode && window.setDocMode('orders')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#1a3e8c; color:#fff; font-weight:700; font-size:13px; cursor:pointer;">Service Orders<span class="ord-badge" style="display:none"></span></button>
+    </div>
+    <h2>Service Orders</h2>
+    <div class="ord-sub">Orders sent by customers from avrok-acs.kesug.com. Tap an order to see the customer's details.</div>
+    <div id="ordersLocked" class="ord-lock" style="display:none"></div>
+    <div id="ordersBody" style="display:none">
+      <div class="ord-bar"><span id="ordersCount"></span><button type="button" onclick="ordersLoad()">&#8635; Refresh</button></div>
+      <div id="ordersList"></div>
+    </div>
+  </div>
+  </div>
+
   <!-- ==================== QUOTATION GENERATOR (embedded mode) ==================== -->
   <div id="quotationFormView">
     <div id="docModeToggle2" style="display:flex; gap:10px; margin-bottom:16px;">
-      <button type="button" id="billModeBtn2" onclick="window.setDocMode && window.setDocMode('bill')" style="flex:1; padding:12px 10px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:14px; cursor:pointer;">Bill Generator</button>
-      <button type="button" id="quotationModeBtn2" onclick="window.setDocMode && window.setDocMode('quotation')" style="flex:1; padding:12px 10px; border-radius:10px; border:2px solid #1a3e8c; background:#1a3e8c; color:#fff; font-weight:700; font-size:14px; cursor:pointer;">Quotation Generator</button>
+      <button type="button" id="billModeBtn2" onclick="window.setDocMode && window.setDocMode('bill')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:13px; cursor:pointer;">Bill Generator</button>
+      <button type="button" id="quotationModeBtn2" onclick="window.setDocMode && window.setDocMode('quotation')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#1a3e8c; color:#fff; font-weight:700; font-size:13px; cursor:pointer;">Quotation Generator</button>
+      <button type="button" id="ordersModeBtn2" onclick="window.setDocMode && window.setDocMode('orders')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:13px; cursor:pointer;">Service Orders<span class="ord-badge" style="display:none"></span></button>
     </div>
     <div class="qz-app-wrap">
   <h1>Quotation <span>Generator</span></h1>
@@ -4751,30 +4824,116 @@ function quotClearHistory(){
   quotRenderHistoryOverlay();
 }
 
-// ---------------- Bill / Quotation mode switch (same app banner, same page) ----------------
+// ---------------- Bill / Quotation / Service Orders mode switch (same app banner, same page) ----------------
 function setDocMode(mode){
-  const billView = document.getElementById('billFormView');
-  const quotView = document.getElementById('quotationFormView');
-  const billBtns = [document.getElementById('billModeBtn'), document.getElementById('billModeBtn2')];
-  const quotBtns = [document.getElementById('quotationModeBtn'), document.getElementById('quotationModeBtn2')];
-  const activeStyle = 'flex:1; padding:12px 10px; border-radius:10px; border:2px solid #1a3e8c; background:#1a3e8c; color:#fff; font-weight:700; font-size:14px; cursor:pointer;';
-  const inactiveStyle = 'flex:1; padding:12px 10px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:14px; cursor:pointer;';
-
-  if(mode === 'quotation'){
-    if(billView) billView.style.display = 'none';
-    if(quotView) quotView.style.display = 'block';
-    billBtns.forEach(b => { if(b) b.setAttribute('style', inactiveStyle); });
-    quotBtns.forEach(b => { if(b) b.setAttribute('style', activeStyle); });
-    if(typeof quotRenderSlip === 'function') quotRenderSlip();
-  } else {
-    if(quotView) quotView.style.display = 'none';
-    if(billView) billView.style.display = 'block';
-    quotBtns.forEach(b => { if(b) b.setAttribute('style', inactiveStyle); });
-    billBtns.forEach(b => { if(b) b.setAttribute('style', activeStyle); });
-  }
+  const views = { bill: 'billFormView', quotation: 'quotationFormView', orders: 'ordersFormView' };
+  const btnIds = { bill: ['billModeBtn','billModeBtn2','billModeBtn3'], quotation: ['quotationModeBtn','quotationModeBtn2','quotationModeBtn3'], orders: ['ordersModeBtn','ordersModeBtn2','ordersModeBtn3'] };
+  const activeStyle = 'flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#1a3e8c; color:#fff; font-weight:700; font-size:13px; cursor:pointer;';
+  const inactiveStyle = 'flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:13px; cursor:pointer;';
+  if(!views[mode]) mode = 'bill';
+  Object.keys(views).forEach(k => {
+    const v = document.getElementById(views[k]);
+    if(v) v.style.display = (k === mode) ? 'block' : 'none';
+    btnIds[k].forEach(id => { const b = document.getElementById(id); if(b) b.setAttribute('style', k === mode ? activeStyle : inactiveStyle); });
+  });
+  if(mode === 'quotation' && typeof quotRenderSlip === 'function') quotRenderSlip();
+  if(mode === 'orders') ordersLoad();
+  window.currentDocMode = mode;
   window.scrollTo(0,0);
 }
 window.setDocMode = setDocMode;
+
+// ---------------- SERVICE ORDERS (view only for avrok.ac.services.01@gmail.com) ----------------
+let ordersCache = [];
+function ordEsc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function ordIsAdmin(){ return typeof window.isOrdersAdmin === 'function' && window.isOrdersAdmin(); }
+function ordFmt(ts){
+  if(!ts) return '-';
+  try{ return new Date(ts).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true }); }catch(e){ return '-'; }
+}
+function ordPhone(p){
+  const d = String(p || '').replace(/\D/g, '');
+  if(d.length === 10) return '91' + d;
+  if(d.length === 11 && d[0] === '0') return '91' + d.slice(1);
+  return d;
+}
+function ordUpdateBadge(){
+  const n = ordIsAdmin() ? ordersCache.filter(o => o.status !== 'done').length : 0;
+  document.querySelectorAll('.ord-badge').forEach(b => { b.textContent = n; b.style.display = n ? 'inline-block' : 'none'; });
+}
+function ordShowLocked(html){
+  const l = document.getElementById('ordersLocked'), b = document.getElementById('ordersBody');
+  if(l){ l.innerHTML = html; l.style.display = 'block'; }
+  if(b) b.style.display = 'none';
+}
+async function ordersLoad(silent){
+  const view = document.getElementById('ordersFormView');
+  const list = document.getElementById('ordersList'), body = document.getElementById('ordersBody'), locked = document.getElementById('ordersLocked');
+  if(!view || !list) return;
+  if(!ordIsAdmin()){
+    ordersCache = []; ordUpdateBadge();
+    ordShowLocked('Service orders can only be seen by the Avrok owner account.<br><b>' + ordEsc(window.ORDERS_ADMIN_EMAIL || 'avrok.ac.services.01@gmail.com') + '</b><br>Please sign in with this Google account.<br><button type="button" onclick="window.signInWithGoogle && window.signInWithGoogle()">Sign in with Google</button>');
+    return;
+  }
+  locked.style.display = 'none'; body.style.display = 'block';
+  if(!silent) list.innerHTML = '<div class="ord-empty">Loading orders...</div>';
+  try{
+    ordersCache = await window.fetchServiceOrders();
+    ordersRender();
+  }catch(err){
+    console.warn('Service orders load failed:', err);
+    const denied = /permission/i.test(String(err && (err.code || err.message)));
+    ordShowLocked(denied
+      ? 'Firebase is not allowing this account to read orders yet.<br>Please update the Realtime Database rules (serviceOrders) and tap Refresh.<br><button type="button" onclick="ordersLoad()">Try again</button>'
+      : 'Could not load orders. Check your internet connection.<br><button type="button" onclick="ordersLoad()">Try again</button>');
+  }
+}
+function ordersRender(){
+  const list = document.getElementById('ordersList'), cnt = document.getElementById('ordersCount');
+  if(!list) return;
+  const openIds = new Set(Array.from(list.querySelectorAll('.ord-card.open')).map(c => c.getAttribute('data-id')));
+  const total = ordersCache.length, fresh = ordersCache.filter(o => o.status !== 'done').length;
+  if(cnt) cnt.textContent = total ? (total + ' order' + (total > 1 ? 's' : '') + ' • ' + fresh + ' new') : '';
+  ordUpdateBadge();
+  if(!total){ list.innerHTML = '<div class="ord-empty">No service orders yet.<br>Orders sent from avrok-acs.kesug.com will appear here.</div>'; return; }
+  list.innerHTML = ordersCache.map(o => {
+    const done = o.status === 'done';
+    const ph = ordPhone(o.phone);
+    const acts = (ph ? '<a class="wa" href="https://wa.me/' + ph + '" target="_blank" rel="noopener">WhatsApp</a><a href="tel:+' + ph + '">Call</a>' : '')
+      + '<button type="button" onclick="ordersToggleDone(\'' + ordEsc(o.id) + '\')">' + (done ? 'Mark as new' : 'Mark as done') + '</button>'
+      + '<button type="button" class="del" onclick="ordersDelete(\'' + ordEsc(o.id) + '\')">Delete</button>';
+    return '<div class="ord-card' + (done ? '' : ' is-new') + (openIds.has(o.id) ? ' open' : '') + '" data-id="' + ordEsc(o.id) + '">'
+      + '<div class="ord-head" onclick="this.parentNode.classList.toggle(\'open\')"><div class="ord-main"><div class="ord-name">' + ordEsc(o.name || 'Customer') + '</div><div class="ord-meta">' + ordEsc(o.service || '-') + ' • ' + ordEsc(ordFmt(o.createdAt)) + '</div></div><span class="ord-pill ' + (done ? 'done' : 'new') + '">' + (done ? 'DONE' : 'NEW') + '</span></div>'
+      + '<div class="ord-det">'
+      + '<div class="ord-row"><b>Name</b><span>' + ordEsc(o.name || '-') + '</span></div>'
+      + '<div class="ord-row"><b>Mobile</b><span>' + ordEsc(o.phone || 'Not given (see WhatsApp)') + '</span></div>'
+      + '<div class="ord-row"><b>Service</b><span>' + ordEsc(o.service || '-') + '</span></div>'
+      + '<div class="ord-row"><b>Work details</b><span>' + ordEsc(o.message || '-') + '</span></div>'
+      + '<div class="ord-row"><b>Received</b><span>' + ordEsc(ordFmt(o.createdAt)) + '</span></div>'
+      + '<div class="ord-row"><b>From</b><span>' + ordEsc(o.source || '-') + '</span></div>'
+      + '<div class="ord-act">' + acts + '</div></div></div>';
+  }).join('');
+}
+async function ordersToggleDone(id){
+  const o = ordersCache.find(x => x.id === id); if(!o) return;
+  const next = o.status === 'done' ? 'new' : 'done';
+  try{ await window.setServiceOrderStatus(id, next); o.status = next; ordersRender(); }
+  catch(e){ console.warn(e); alert('Could not update this order. Please try again.'); }
+}
+async function ordersDelete(id){
+  const o = ordersCache.find(x => x.id === id);
+  if(!confirm('Delete the order from ' + ((o && o.name) || 'this customer') + '? This cannot be undone.')) return;
+  try{ await window.deleteServiceOrder(id); ordersCache = ordersCache.filter(x => x.id !== id); ordersRender(); }
+  catch(e){ console.warn(e); alert('Could not delete this order. Please try again.'); }
+}
+window.ordersLoad = ordersLoad; window.ordersToggleDone = ordersToggleDone; window.ordersDelete = ordersDelete;
+// Called whenever the login state changes
+window.refreshOrdersAccess = function(){
+  if(ordIsAdmin()){ ordersLoad(true).catch(()=>{}); }
+  else { ordersCache = []; ordUpdateBadge(); if(window.currentDocMode === 'orders') ordersLoad(); }
+};
+// Keep the list fresh while the Service Orders tab is open
+setInterval(function(){ if(window.currentDocMode === 'orders' && ordIsAdmin() && !document.hidden) ordersLoad(true); }, 30000);
 
 // init (quotation side)
 quotUpdateLiveClock();
