@@ -1724,19 +1724,16 @@
 
   <!-- ==================== QUOTATION GENERATOR (embedded mode) ==================== -->
   <div id="quotationFormView">
-    <div class="panel">
+    <div class="qz-app-wrap">
+
+  <!-- ============ COMPANY DETAILS (fixed) ============ -->
+  <div class="qz-panel">
     <div id="docModeToggle2" style="display:flex; gap:10px; margin-bottom:16px;">
       <button type="button" id="billModeBtn2" onclick="window.setDocMode && window.setDocMode('bill')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:13px; cursor:pointer;">Bill Generator</button>
       <button type="button" id="quotationModeBtn2" onclick="window.setDocMode && window.setDocMode('quotation')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#1a3e8c; color:#fff; font-weight:700; font-size:13px; cursor:pointer;">Quotation Generator</button>
       <button type="button" id="ordersModeBtn2" onclick="window.setDocMode && window.setDocMode('orders')" style="flex:1; padding:11px 4px; border-radius:10px; border:2px solid #1a3e8c; background:#fff; color:#1a3e8c; font-weight:700; font-size:13px; cursor:pointer;">Service Orders<span class="ord-badge" style="display:none"></span></button>
     </div>
-    <h1>Quotation <span>Generator</span></h1>
-    <div class="qz-subtitle" style="margin-bottom:0;">Fill the form below, hit Generate — the quotation comes out in the challan-style design.</div>
-    </div>
-    <div class="qz-app-wrap">
-
-  <!-- ============ COMPANY DETAILS (fixed) ============ -->
-  <div class="qz-panel">
+    <h1 style="margin-bottom:16px;">Quotation <span>Generator</span></h1>
     <h2>Your Company Details</h2>
     <div class="qz-grid2">
       <div class="qz-field"><label>Company Name</label><input type="text" value="AVROK AC SERVICE" disabled></div>
