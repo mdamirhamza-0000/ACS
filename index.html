@@ -1059,29 +1059,57 @@
   /* ---------------- AI ASSISTANT (Gemini) ---------------- */
   .ai-fab {
     position: fixed; right: 18px; bottom: 26px; z-index: 999;
-    width: 56px; height: 56px; border-radius: 50%;
-    background: #1a3e8c; color: #fff; border: none;
-    box-shadow: 0 4px 14px rgba(0,0,0,.35);
+    width: 60px; height: 60px; border-radius: 50%;
+    background: #fff; color: #fff; border: none; padding: 0;
+    box-shadow: 0 6px 18px rgba(26,62,140,.45), 0 0 0 3px rgba(91,155,255,.25);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
   }
-  .ai-fab svg { width: 26px; height: 26px; }
+  .ai-fab svg { width: 40px; height: 40px; }
   .ai-chat-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.45);
-    z-index: 1000; display: flex; align-items: flex-end; justify-content: center;
+    position: fixed; inset: 0; background: #f7f8fb;
+    z-index: 1000; display: flex; align-items: stretch; justify-content: center;
   }
   .ai-chat-panel {
-    width: 100%; max-width: 480px; background: #fff;
-    border-radius: 16px 16px 0 0; max-height: 88vh;
-    display: flex; flex-direction: column; overflow: hidden;
+    width: 100%; max-width: 760px; background: #fff;
+    height: 100vh; height: 100dvh;
+    display: flex; flex-direction: column; overflow: hidden; position: relative;
+    box-shadow: 0 0 0 1px #e3e6ec;
   }
   .ai-chat-header {
-    background: #1a3e8c; color: #fff; padding: 14px 16px;
-    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    background: linear-gradient(135deg, #1a3e8c, #14213d); color: #fff; padding: 10px 10px;
+    display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 4px; flex-shrink: 0;
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
   }
-  .ai-chat-title { font-weight: 800; font-size: 16px; }
-  .ai-chat-sub { font-size: 11px; color: #cfe0ff; opacity: .85; margin-top: 1px; }
-  .ai-chat-close { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; line-height: 1; padding: 4px 8px; }
+  .ai-hdr-btn {
+    width: 44px; height: 44px; border: none; border-radius: 50%; background: transparent; color: #fff;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .ai-hdr-btn:active { background: rgba(255,255,255,.16); }
+  .ai-hdr-btn svg { width: 24px; height: 24px; }
+  .ai-chat-brand { display: flex; align-items: center; justify-content: center; gap: 10px; min-width: 0; }
+  .ai-chat-brand .ai-logo { width: 36px; height: 36px; flex-shrink: 0; background: #fff; border-radius: 11px; padding: 3px; display: flex; }
+  .ai-chat-brand .ai-logo svg { width: 100%; height: 100%; }
+  .ai-chat-title { font-weight: 800; font-size: 16px; line-height: 1.15; }
+  .ai-chat-sub { font-size: 11px; color: #cfe0ff; opacity: .9; margin-top: 1px; }
+  .ai-settings {
+    position: absolute; inset: 0; background: #fff; z-index: 5; display: none; flex-direction: column;
+  }
+  .ai-settings.open { display: flex; }
+  .ai-settings-body { padding: 18px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .ai-settings-body h3 { margin: 0; font-size: 15px; color: #14213d; }
+  .ai-settings-body p { margin: 0; font-size: 12.5px; color: #555; line-height: 1.5; }
+  .ai-settings-body a { color: #1a3e8c; font-weight: 600; }
+  .ai-key-row { display: flex; gap: 8px; }
+  .ai-key-row input { flex: 1; min-width: 0; padding: 11px 12px; border: 1px solid #ccc; border-radius: 10px; font-size: 14px; }
+  .ai-key-row button, .ai-settings-actions button {
+    padding: 0 14px; border-radius: 10px; border: 1px solid #ccc; background: #f3f5fa; font-size: 13px; cursor: pointer; min-height: 42px;
+  }
+  .ai-settings-actions { display: flex; gap: 8px; }
+  .ai-settings-actions .primary { flex: 1; background: #1a3e8c; color: #fff; border-color: #1a3e8c; font-weight: 700; }
+  .ai-key-status { font-size: 12.5px; font-weight: 600; }
+  .ai-key-status.ok { color: #1b7f3b; }
+  .ai-key-status.bad { color: #c0392b; }
   .ai-chat-controls {
     display: flex; gap: 8px; align-items: center; padding: 8px 12px;
     border-bottom: 1px solid #eee; font-size: 12px; flex-wrap: wrap; flex-shrink: 0;
@@ -3565,15 +3593,65 @@ function downloadQR(openFile = true){
 let aiChatHistory = [];
 let pendingAiImage = null; // { dataUrl, base64, mimeType }
 
+const AI_KEY_STORE = 'avrok_gemini_api_key';
+function getAiKey(){ try { return (localStorage.getItem(AI_KEY_STORE) || '').trim(); } catch(e){ return ''; } }
+function setAiKeyStatus(msg, cls){
+  const el = document.getElementById('aiKeyStatus');
+  if(el){ el.textContent = msg || ''; el.className = 'ai-key-status' + (cls ? ' ' + cls : ''); }
+}
 function openAiChat(){
   document.getElementById('aiChatOverlay').style.display = 'flex';
   if(aiChatHistory.length === 0){
     addAiMessage('bot', 'Namaste! Main AVROK AC SERVICE ka AI assistant hu. AC ya electrical se juda koi bhi sawal poochein, ya bill/quotation mein item aur sahi price suggest karwane ke liye bolein. Camera icon 📷 se photo bhi bhej sakte hain.');
   }
-  setTimeout(()=> document.getElementById('aiChatInput')?.focus(), 100);
+  if(!getAiKey()){
+    addAiMessage('bot', 'Pehle upar right corner ke ⚙ Settings mein apni Google Gemini API key paste karein, tabhi main jawab de paunga.');
+    openAiSettings();
+  } else {
+    setTimeout(()=> document.getElementById('aiChatInput')?.focus(), 100);
+  }
 }
 function closeAiChat(){
+  closeAiSettings();
   document.getElementById('aiChatOverlay').style.display = 'none';
+}
+function openAiSettings(){
+  document.getElementById('aiSettings').classList.add('open');
+  const inp = document.getElementById('aiKeyInput');
+  inp.value = getAiKey();
+  inp.type = 'password';
+  document.getElementById('aiKeyEye').textContent = 'Show';
+  setAiKeyStatus(getAiKey() ? '✅ API key saved hai.' : 'Abhi koi key saved nahi hai.', getAiKey() ? 'ok' : '');
+}
+function closeAiSettings(){
+  document.getElementById('aiSettings')?.classList.remove('open');
+}
+function toggleAiKeyVisible(){
+  const inp = document.getElementById('aiKeyInput');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  document.getElementById('aiKeyEye').textContent = show ? 'Hide' : 'Show';
+}
+async function pasteAiKey(){
+  try {
+    const t = (await navigator.clipboard.readText() || '').trim();
+    if(t){ document.getElementById('aiKeyInput').value = t; setAiKeyStatus('Paste ho gaya — ab Save Key dabayein.', ''); }
+  } catch(e){
+    setAiKeyStatus('Clipboard allow nahi hua — box mein long-press karke paste karein.', 'bad');
+  }
+}
+function saveAiKey(){
+  const v = document.getElementById('aiKeyInput').value.trim();
+  if(!v){ setAiKeyStatus('Pehle API key paste karein.', 'bad'); return; }
+  if(!/^AIza[0-9A-Za-z_\-]{20,}$/.test(v)){ setAiKeyStatus('Yeh Gemini API key jaisi nahi lag rahi (AIza... se shuru hoti hai).', 'bad'); return; }
+  try { localStorage.setItem(AI_KEY_STORE, v); } catch(e){ setAiKeyStatus('Key save nahi ho payi (browser storage block hai).', 'bad'); return; }
+  setAiKeyStatus('✅ API key save ho gayi.', 'ok');
+  setTimeout(()=>{ closeAiSettings(); document.getElementById('aiChatInput')?.focus(); }, 600);
+}
+function clearAiKey(){
+  try { localStorage.removeItem(AI_KEY_STORE); } catch(e){}
+  document.getElementById('aiKeyInput').value = '';
+  setAiKeyStatus('Key hata di gayi.', '');
 }
 
 // Gemini replies mein **bold**, *italic* aur naye lines aate hain — inhe
@@ -3636,42 +3714,256 @@ function addAiMessage(role, text, id, imageDataUrl){
   return div;
 }
 
-// Backend ab jawab ko real-time stream karta hai (poora jawab complete hone
-// tak wait nahi karna padta) — yeh function chunks aate hi seedha screen par
-// dikhata hai, jaise Claude/ChatGPT mein hota hai. Poora reply text return karta hai.
+// ---- Gemini ko seedha browser se call karte hain (GitHub Pages par backend nahi hota) ----
+const AI_SYSTEM_INSTRUCTION = `
+You are AVROK AI Assistant inside the AVROK ACS application.
+You have advanced professional knowledge of:
+AC SERVICES:
+- Split AC
+- Window AC
+- Inverter AC
+- Non-inverter AC
+- Compressor
+- Condenser
+- Evaporator
+- Expansion valve
+- Capillary
+- Refrigerant
+- Gas charging
+- Gas leakage
+- Vacuuming
+- Pressure
+- Cooling problems
+- PCB
+- Sensors
+- Fan motor
+- Capacitor
+- Contactor
+- Thermostat
+- Drain blockage
+- Water leakage
+- Ice formation
+- High/low pressure
+- AC installation
+- AC servicing
+- AC maintenance
+- Troubleshooting
+ELECTRICAL / ELECTRICIAN:
+- Phase
+- Neutral
+- Earth
+- Voltage
+- Current
+- Resistance
+- Power
+- Watt
+- MCB
+- RCCB
+- RCBO
+- ELCB
+- Contactor
+- Relay
+- Capacitor
+- Motor
+- Single phase
+- Three phase
+- Earthing
+- Short circuit
+- Overload
+- House wiring
+- AC wiring
+- Electrical fault finding
+AVROK ACS APP:
+- Bill Generator
+- Quotation Generator
+- Customer information
+- Service information
+- Billing
+- Quotations
+- App features and workflows
+When the user sends a photo of an AC unit, PCB, wiring, switchboard, or any
+electrical/AC component, carefully look at it and:
+- Describe what you see relevant to the problem.
+- Identify the likely fault or issue.
+- Explain, step by step, how to fix it or how to wire it correctly.
+- Always prioritize safety, especially for electrical connections.
+Answer in the same language as the user.
+If the user uses Hindi/Hinglish, answer in simple Hindi/Hinglish.
+Give practical technical explanations. The RESPONSE STYLE instruction at the very end controls how long or short the answer should be, and overrides any general instruction about detail.
+Do not invent actual customer, bill, stock,
+quotation or app data that has not been provided.
+For electrical work, always prioritize safety.
+Never instruct the user to work on live electrical wiring.
+`;
+
+function planFor(rawMessage, hasImage) {
+  // Bill context ke saath aaya ho toh sirf asli sawal nikalo
+  let q = String(rawMessage || "");
+  const marker = "User ka sawal:";
+  const idx = q.lastIndexOf(marker);
+  if (idx !== -1) q = q.slice(idx + marker.length);
+  q = q.trim().toLowerCase();
+  const words = q.split(/\s+/).filter(Boolean).length;
+
+  const isChat =
+    words <= 5 &&
+    /^(hi+|hii+|hia|his|hello|hlo|hey|namaste|namaskar|thanks?|thank you|shukriya|dhanyavad|dhanyawad|ok|okay|theek hai|thik hai|accha|acha|bye)\b/.test(q) ||
+    /\b(kaise ho|kese ho|kaisa hai|kya haal|how are you|kaun ho|kon ho|who are you)\b/.test(q);
+  const wantsShort =
+    /\b(short|chhota|chota|chhoti|choti|sankshep|briefly|brief|ek line|1 line|one line)\b|संक्षेप|छोटा/.test(q);
+  const wantsLong =
+    /\b(detail|details|detailed|vistar|vistaar|poori jankari|puri jankari|explain|samjha|samjhao|step by step|deep)\b|विस्तार|समझा/.test(q);
+  const complexTrigger =
+    /\b(kyu|kyun|kyon|why|kaise|kese|kaisey|how|problem|fault|kharab|nahi chal|nhi chal|band ho|error|trip|leak|repair|fix|troubleshoot|wiring|connection|connect|diagram|calculate|calculation|hisab|compare|difference|farq|not working|not cooling|cooling nahi|thanda nahi|garam|awaz|noise|shock|current aa|spark|jal|burn|wire|cable|ampere|amp|amps|load|earthing|kaun si|konsi|kaunsi|tapak|tapakna|tapak raha|chalu nahi|chalu nhi|start nahi|start nhi|on nahi|on nhi|ho raha nahi|nahi ho raha|nhi ho raha|nahi kar raha|nhi kar raha|kaam nahi|kaam nhi|band hai)\b|क्यों|कैसे|समस्या|खराब|वायरिंग/.test(q);
+
+  if (isChat) {
+    return {
+      mode: "chat", level: "MINIMAL", maxTokens: 400, strong: false,
+      hint: "RESPONSE STYLE: This is casual small talk. Reply in 1-2 short friendly lines only."
+    };
+  }
+  if (wantsShort && !hasImage) {
+    return {
+      mode: "short", level: "MINIMAL", maxTokens: 600, strong: false,
+      hint: "RESPONSE STYLE: The user wants a brief answer. Reply in at most 3 short lines, no long introduction."
+    };
+  }
+  if (hasImage || wantsLong || complexTrigger || words > 40) {
+    return {
+      mode: "complex", level: "LOW", maxTokens: wantsLong ? 4096 : 3072, strong: true,
+      hint: "RESPONSE STYLE: This needs a careful, detailed answer. Give a step-by-step explanation: likely causes ordered from most to least likely, what to check or measure, and how to fix it. Prioritize safety for electrical work."
+    };
+  }
+  return {
+    mode: "normal", level: "MINIMAL", maxTokens: 1024, strong: false,
+    hint: "RESPONSE STYLE: Give a clear, practical answer in about 5-8 short lines. Use short bullet points only if they help. No long introduction, and no safety lecture unless there is real electrical risk. If more depth could help, end with one short line offering more detail."
+  };
+}
+
+// Jawab real-time stream hota hai; chunks aate hi screen par dikhte hain.
 async function streamAiReply(payload, loadingId){
-  const res = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+  const apiKey = getAiKey();
+  if(!apiKey){
+    openAiSettings();
+    throw new Error('Gemini API key set nahi hai. ⚙ Settings mein key paste karein.');
+  }
+  const { message, messages = [], model = 'gemini-3.5-flash', image } = payload;
+
+  const contents = messages.slice(-30).map(item => ({
+    role: item.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: String(item.content || item.text || '') }]
+  }));
+  const parts = [];
+  if(message) parts.push({ text: message });
+  if(image && image.data) parts.push({ inlineData: { mimeType: image.mimeType || 'image/jpeg', data: image.data } });
+  if(!parts.length) parts.push({ text: '' });
+  contents.push({ role: 'user', parts });
+
+  const cleanModel = String(model).replace(/^models\//, '').trim();
+  const FAST = 'gemini-3.1-flash-lite';
+  const hasImage = !!(image && image.data);
+  const plan = planFor(message, hasImage);
+  const modelsToTry = (plan.strong
+    ? [cleanModel, FAST, 'gemini-3.8-flash']
+    : [FAST, cleanModel, 'gemini-3.8-flash']
+  ).filter((m, i, arr) => arr.indexOf(m) === i);
+  const FIRST_TOKEN_TIMEOUT_MS = hasImage ? 25000 : 12000;
+  const levelFor = (m) => (/3\.[78]/.test(m) ? 'LOW' : plan.level);
+  const buildBody = (level) => JSON.stringify({
+    systemInstruction: { parts: [{ text: AI_SYSTEM_INSTRUCTION + '\n\n' + plan.hint }] },
+    contents,
+    generationConfig: {
+      maxOutputTokens: plan.maxTokens,
+      ...(level ? { thinkingConfig: { thinkingLevel: level } } : {})
+    }
   });
 
-  const contentType = res.headers.get('Content-Type') || '';
-  if(!res.ok || contentType.includes('application/json')){
-    let data = {};
-    try { data = await res.json(); } catch(e){}
-    throw new Error(data.error || 'AI se jawab nahi mila. Vercel par GEMINI_API_KEY set hai ya nahi check karein.');
+  const attempt = async (m, level) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), FIRST_TOKEN_TIMEOUT_MS);
+    try {
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:streamGenerateContent?alt=sse`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: buildBody(level), signal: ctrl.signal }
+      );
+      if(!r.ok){
+        clearTimeout(timer);
+        let errData = {};
+        try { errData = await r.json(); } catch(e){}
+        return { ok: false, status: r.status, message: errData?.error?.message || 'Gemini API error' };
+      }
+      const reader = r.body.getReader();
+      const first = await reader.read();
+      clearTimeout(timer);
+      return { ok: true, reader, first };
+    } catch(err){
+      clearTimeout(timer);
+      return { ok: false, status: 504, message: err && err.name === 'AbortError' ? 'Model ne time par jawab shuru nahi kiya.' : 'Gemini se connect nahi ho paya. Internet check karein.' };
+    }
+  };
+
+  let chosen = null;
+  let lastErr = { status: 500, message: 'Gemini API error' };
+  for(const m of modelsToTry){
+    let a = await attempt(m, levelFor(m));
+    if(!a.ok && a.status === 400 && /think/i.test(a.message || '')){
+      a = await attempt(m, 'LOW');
+      if(!a.ok && a.status === 400 && /think/i.test(a.message || '')) a = await attempt(m, null);
+    }
+    if(a.ok){ chosen = a; break; }
+    lastErr = { status: a.status, message: a.message };
+    if(a.status === 401 || a.status === 403 || (a.status === 400 && /api key/i.test(a.message || ''))) break;
+  }
+  if(!chosen){
+    if(lastErr.status === 400 || lastErr.status === 401 || lastErr.status === 403){
+      throw new Error('API key galat ya band hai: ' + lastErr.message + ' (⚙ Settings mein sahi key daalein)');
+    }
+    throw new Error(lastErr.message);
   }
 
   document.getElementById(loadingId)?.remove();
-
   const box = document.getElementById('aiChatMessages');
   const div = document.createElement('div');
   div.className = 'ai-msg bot';
   box.appendChild(div);
 
-  const reader = res.body.getReader();
   const decoder = new TextDecoder();
-  let full = '';
-  while(true){
-    const { done, value } = await reader.read();
-    if(done) break;
-    full += decoder.decode(value, { stream: true });
-    div.innerHTML = renderAiMarkdown(full) + '<span class="ai-typing-cursor">▍</span>';
+  let buffer = '', full = '', lastInfo = '';
+  const render = (cursor) => {
+    div.innerHTML = renderAiMarkdown(full) + (cursor ? '<span class="ai-typing-cursor">▍</span>' : '');
     box.scrollTop = box.scrollHeight;
+  };
+  const handleEvent = (evt) => {
+    const payloadStr = evt.split('\n').filter(l => l.startsWith('data:')).map(l => l.replace(/^data:\s?/, '')).join('\n').trim();
+    if(!payloadStr || payloadStr === '[DONE]') return;
+    try {
+      const json = JSON.parse(payloadStr);
+      const cand = json?.candidates?.[0];
+      const piece = cand?.content?.parts?.filter(p => !p.thought).map(p => p.text || '').join('') || '';
+      if(piece){ full += piece; render(true); }
+      if(cand?.finishReason && cand.finishReason !== 'STOP') lastInfo = 'finishReason: ' + cand.finishReason;
+      if(json?.promptFeedback?.blockReason) lastInfo = 'blocked: ' + json.promptFeedback.blockReason;
+    } catch(e){}
+  };
+  const processValue = (value) => {
+    buffer += decoder.decode(value, { stream: true });
+    buffer = buffer.replace(/\r\n/g, '\n');
+    const events = buffer.split('\n\n');
+    buffer = events.pop();
+    for(const evt of events) handleEvent(evt);
+  };
+  if(!chosen.first.done && chosen.first.value) processValue(chosen.first.value);
+  let finished = chosen.first.done;
+  while(!finished){
+    const { done, value } = await chosen.reader.read();
+    if(done) break;
+    processValue(value);
   }
-  div.innerHTML = renderAiMarkdown(full);
-  box.scrollTop = box.scrollHeight;
+  buffer += decoder.decode();
+  buffer = buffer.replace(/\r\n/g, '\n');
+  if(buffer.trim()) handleEvent(buffer);
+  if(!full) full = 'AI ne koi response nahi diya.' + (lastInfo ? ' (' + lastInfo + ')' : '');
+  render(false);
   return full;
 }
 
@@ -3803,7 +4095,7 @@ async function sendAiMessage(){
     aiChatHistory.push({ role: 'assistant', text: replyText });
   } catch(e){
     document.getElementById(loadingId)?.remove();
-    addAiMessage('bot', 'Error: ' + (e.message || 'AI tak pahuch nahi paye. Yeh feature sirf tab kaam karega jab is app ko Vercel par deploy karke /api/chat backend chalu ho.'));
+    addAiMessage('bot', 'Error: ' + (e.message || 'AI tak pahuch nahi paye. Internet aur API key check karein.'));
   }
 }
 
@@ -4930,21 +5222,69 @@ window.refreshDocumentNumbers = function(){
 </script>
 
 <!-- ---------------- AI ASSISTANT (Gemini) ---------------- -->
-<button id="aiFab" class="ai-fab" onclick="openAiChat()" aria-label="AI Assistant" title="AI Assistant">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M12 3v3M12 18v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M3 12h3M18 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>
-    <circle cx="12" cy="12" r="3.2"/>
+<button id="aiFab" class="ai-fab" onclick="openAiChat()" aria-label="AI Assistant" title="AVROK AI Assistant">
+  <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="aiLgF" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#5b9bff"/><stop offset="1" stop-color="#1a3e8c"/>
+      </linearGradient>
+    </defs>
+    <path d="M10 6h28a6 6 0 0 1 6 6v18a6 6 0 0 1-6 6H27l-8.5 7.2a1 1 0 0 1-1.65-.76V36H10a6 6 0 0 1-6-6V12a6 6 0 0 1 6-6Z" fill="url(#aiLgF)"/>
+    <path d="M24 11.5c.7 5.6 2.9 7.8 8.5 8.5-5.6.7-7.8 2.9-8.5 8.5-.7-5.6-2.9-7.8-8.5-8.5 5.6-.7 7.8-2.9 8.5-8.5Z" fill="#fff"/>
+    <circle cx="33.5" cy="12.5" r="2" fill="#bfe0ff"/>
+    <circle cx="14.5" cy="27.5" r="1.5" fill="#bfe0ff"/>
   </svg>
 </button>
 
 <div id="aiChatOverlay" class="ai-chat-overlay" style="display:none;">
   <div class="ai-chat-panel">
     <div class="ai-chat-header">
-      <div>
-        <div class="ai-chat-title">AVROK AI Assistant</div>
-        <div class="ai-chat-sub">AC Service &amp; Electrical Expert · Powered by Google Gemini</div>
+      <button class="ai-hdr-btn" onclick="closeAiChat()" aria-label="Back" title="Back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="ai-chat-brand">
+        <span class="ai-logo"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="aiLgH" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#5b9bff"/><stop offset="1" stop-color="#1a3e8c"/>
+      </linearGradient>
+    </defs>
+    <path d="M10 6h28a6 6 0 0 1 6 6v18a6 6 0 0 1-6 6H27l-8.5 7.2a1 1 0 0 1-1.65-.76V36H10a6 6 0 0 1-6-6V12a6 6 0 0 1 6-6Z" fill="url(#aiLgH)"/>
+    <path d="M24 11.5c.7 5.6 2.9 7.8 8.5 8.5-5.6.7-7.8 2.9-8.5 8.5-.7-5.6-2.9-7.8-8.5-8.5 5.6-.7 7.8-2.9 8.5-8.5Z" fill="#fff"/>
+    <circle cx="33.5" cy="12.5" r="2" fill="#bfe0ff"/>
+    <circle cx="14.5" cy="27.5" r="1.5" fill="#bfe0ff"/>
+  </svg></span>
+        <div>
+          <div class="ai-chat-title">AVROK AI Assistant</div>
+          <div class="ai-chat-sub">AC Service &amp; Electrical Expert</div>
+        </div>
       </div>
-      <button class="ai-chat-close" onclick="closeAiChat()" aria-label="Close">✕</button>
+      <button class="ai-hdr-btn" onclick="openAiSettings()" aria-label="Settings" title="Settings (Gemini API key)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+      </button>
+    </div>
+    <div id="aiSettings" class="ai-settings">
+      <div class="ai-chat-header">
+        <button class="ai-hdr-btn" onclick="closeAiSettings()" aria-label="Back" title="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 5l-7 7 7 7"/></svg>
+        </button>
+        <div class="ai-chat-brand"><div><div class="ai-chat-title">AI Settings</div></div></div>
+        <span></span>
+      </div>
+      <div class="ai-settings-body">
+        <h3>Google Gemini API Key</h3>
+        <p>Apni Gemini API key yahan paste karein. Key sirf is phone/browser mein save hoti hai aur seedha Google Gemini ko bheji jaati hai. Free key yahan se banayein: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></p>
+        <div class="ai-key-row">
+          <input type="password" id="aiKeyInput" placeholder="AIza..." autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button type="button" onclick="toggleAiKeyVisible()" id="aiKeyEye">Show</button>
+          <button type="button" onclick="pasteAiKey()">Paste</button>
+        </div>
+        <div id="aiKeyStatus" class="ai-key-status"></div>
+        <div class="ai-settings-actions">
+          <button type="button" class="primary" onclick="saveAiKey()">Save Key</button>
+          <button type="button" onclick="clearAiKey()">Remove</button>
+        </div>
+      </div>
     </div>
     <div class="ai-chat-controls">
       <label class="ai-context-toggle"><input type="checkbox" id="aiUseContext" checked> Is bill ka data AI ko do</label>
