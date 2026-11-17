@@ -3643,7 +3643,7 @@ async function pasteAiKey(){
 function saveAiKey(){
   const v = document.getElementById('aiKeyInput').value.trim();
   if(!v){ setAiKeyStatus('Pehle API key paste karein.', 'bad'); return; }
-  if(!/^AIza[0-9A-Za-z_\-]{20,}$/.test(v)){ setAiKeyStatus('Yeh Gemini API key jaisi nahi lag rahi (AIza... se shuru hoti hai).', 'bad'); return; }
+  if(/\s/.test(v) || v.length < 20){ setAiKeyStatus('Key mein space hai ya bahut chhoti hai — poori key dobara paste karein.', 'bad'); return; }
   try { localStorage.setItem(AI_KEY_STORE, v); } catch(e){ setAiKeyStatus('Key save nahi ho payi (browser storage block hai).', 'bad'); return; }
   setAiKeyStatus('✅ API key save ho gayi.', 'ok');
   setTimeout(()=>{ closeAiSettings(); document.getElementById('aiChatInput')?.focus(); }, 600);
@@ -5275,7 +5275,7 @@ window.refreshDocumentNumbers = function(){
         <h3>Google Gemini API Key</h3>
         <p>Apni Gemini API key yahan paste karein. Key sirf is phone/browser mein save hoti hai aur seedha Google Gemini ko bheji jaati hai. Free key yahan se banayein: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></p>
         <div class="ai-key-row">
-          <input type="password" id="aiKeyInput" placeholder="AIza..." autocomplete="off" autocapitalize="off" spellcheck="false">
+          <input type="password" id="aiKeyInput" placeholder="Gemini API key paste karein" autocomplete="off" autocapitalize="off" spellcheck="false">
           <button type="button" onclick="toggleAiKeyVisible()" id="aiKeyEye">Show</button>
           <button type="button" onclick="pasteAiKey()">Paste</button>
         </div>
