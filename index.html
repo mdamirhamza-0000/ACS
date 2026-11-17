@@ -1092,6 +1092,13 @@
   .ai-chat-brand .ai-logo svg { width: 100%; height: 100%; }
   .ai-chat-title { font-weight: 800; font-size: 16px; line-height: 1.15; }
   .ai-chat-sub { font-size: 11px; color: #cfe0ff; opacity: .9; margin-top: 1px; }
+  .ai-speak-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    margin-top: 6px; padding: 3px 10px; border: 1px solid #d5d9e2; border-radius: 14px;
+    background: #f3f5fa; color: #1a3e8c; font-size: 13px; cursor: pointer; line-height: 1.4;
+  }
+  .ai-speak-btn.speaking { background: #1a3e8c; color: #fff; border-color: #1a3e8c; }
+  .ai-speak-row { display: block; }
   .ai-settings {
     position: absolute; inset: 0; background: #fff; z-index: 5; display: none; flex-direction: column;
   }
@@ -3612,6 +3619,7 @@ function openAiChat(){
   }
 }
 function closeAiChat(){
+  stopAiSpeech();
   closeAiSettings();
   document.getElementById('aiChatOverlay').style.display = 'none';
 }
@@ -3689,6 +3697,62 @@ function renderAiMarkdown(text){
   return out;
 }
 
+// ---------------- Bot ka jawab bol kar sunana (🔊) ----------------
+let aiSpeakingBtn = null;
+function stopAiSpeech(){
+  try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e){}
+  if(aiSpeakingBtn){ aiSpeakingBtn.classList.remove('speaking'); aiSpeakingBtn.textContent = '🔊'; aiSpeakingBtn = null; }
+}
+function cleanTextForSpeech(t){
+  return String(t || '')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/^\s{0,3}#{1,6}\s*/gm, '')
+    .replace(/^\s*[-*•]\s+/gm, '')
+    .replace(/^(-{3,}|\*{3,}|_{3,})$/gm, ' ')
+    .replace(/[⚠️✅❌📷🔊➤▍]/g, ' ')
+    .replace(/\s*\n+\s*/g, '. ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+function speakAiText(text, btn){
+  const synth = window.speechSynthesis;
+  if(!synth || typeof SpeechSynthesisUtterance === 'undefined'){
+    alert('Is phone/browser mein bol kar sunane ki suvidha nahi hai.');
+    return;
+  }
+  if(aiSpeakingBtn === btn){ stopAiSpeech(); return; } // dobara dabane par ruk jao
+  stopAiSpeech();
+  const clean = cleanTextForSpeech(text);
+  if(!clean) return;
+  const u = new SpeechSynthesisUtterance(clean);
+  u.lang = 'hi-IN'; // Hindi/Hinglish dono ke liye
+  u.rate = 1; u.pitch = 1;
+  try {
+    const voices = synth.getVoices() || [];
+    const v = voices.find(x => /^hi[-_]IN/i.test(x.lang)) || voices.find(x => /^en[-_]IN/i.test(x.lang));
+    if(v) u.voice = v;
+  } catch(e){}
+  const done = () => { if(aiSpeakingBtn === btn){ btn.classList.remove('speaking'); btn.textContent = '🔊'; aiSpeakingBtn = null; } };
+  u.onend = done; u.onerror = done;
+  aiSpeakingBtn = btn;
+  btn.classList.add('speaking'); btn.textContent = '⏹ Stop';
+  try { synth.speak(u); } catch(e){ done(); alert('Awaaz chalu nahi ho payi.'); }
+}
+function attachSpeakBtn(div, text){
+  div.querySelector('.ai-speak-row')?.remove();
+  const row = document.createElement('div');
+  row.className = 'ai-speak-row';
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'ai-speak-btn'; btn.textContent = '🔊';
+  btn.setAttribute('aria-label', 'Jawab sunein'); btn.title = 'Jawab sunein';
+  btn.onclick = () => speakAiText(text, btn);
+  row.appendChild(btn);
+  div.appendChild(row);
+}
+
 function addAiMessage(role, text, id, imageDataUrl){
   const box = document.getElementById('aiChatMessages');
   const div = document.createElement('div');
@@ -3708,6 +3772,7 @@ function addAiMessage(role, text, id, imageDataUrl){
     }
   } else {
     div.innerHTML = renderAiMarkdown(text);
+    if(!id && !/^Error:/.test(text)) attachSpeakBtn(div, text);
   }
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
@@ -3964,6 +4029,7 @@ async function streamAiReply(payload, loadingId){
   if(buffer.trim()) handleEvent(buffer);
   if(!full) full = 'AI ne koi response nahi diya.' + (lastInfo ? ' (' + lastInfo + ')' : '');
   render(false);
+  attachSpeakBtn(div, full);
   return full;
 }
 
