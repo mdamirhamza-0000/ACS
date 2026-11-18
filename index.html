@@ -5291,6 +5291,7 @@ async function ordersLoad(silent){
   }catch(err){
     console.warn('Service orders load failed:', err);
     const denied = /permission/i.test(String(err && (err.code || err.message)));
+    if(silent && ordersCache.length) return; // background refresh: purani list mat hatao
     ordShowLocked(denied
       ? 'Firebase is not allowing this account to read orders yet.<br>Please update the Realtime Database rules (serviceOrders) and tap Refresh.<br><button type="button" onclick="ordersLoad()">Try again</button>'
       : 'Could not load orders. Check your internet connection.<br><button type="button" onclick="ordersLoad()">Try again</button>');
@@ -5344,7 +5345,8 @@ window.refreshOrdersAccess = function(){
   else { ordersCache = []; ordUpdateBadge(); if(window.currentDocMode === 'orders') ordersLoad(); }
 };
 // Keep the list fresh while the Service Orders tab is open
-setInterval(function(){ if(window.currentDocMode === 'orders' && ordIsAdmin() && !document.hidden) ordersLoad(true); }, 30000);
+// (tab band ho tab bhi chalta hai, taaki naye orders ka badge dikhe)
+setInterval(function(){ if(ordIsAdmin() && !document.hidden) ordersLoad(true); }, 30000);
 
 // init (quotation side)
 quotUpdateLiveClock();
