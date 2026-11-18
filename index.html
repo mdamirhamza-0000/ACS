@@ -5351,7 +5351,7 @@ function ordersRender(){
       + '<div class="ord-head" onclick="this.parentNode.classList.toggle(\'open\')"><div class="ord-main"><div class="ord-name">' + ordEsc(o.name || 'Customer') + '</div><div class="ord-meta">' + ordEsc(o.service || '-') + ' • ' + ordEsc(ordFmt(o.createdAt)) + '</div></div><span class="ord-pill ' + (done ? 'done' : 'new') + '">' + (done ? 'DONE' : 'NEW') + '</span></div>'
       + '<div class="ord-det">'
       + '<div class="ord-row"><b>Name</b><span>' + ordEsc(o.name || '-') + '</span></div>'
-      + '<div class="ord-row"><b>Mobile</b><span>' + ordEsc(o.phone || 'Not given (see WhatsApp)') + '</span></div>'
+      + '<div class="ord-row"><b>Mobile</b><span>' + ordEsc(o.phone || 'Not given') + '</span></div>'
       + '<div class="ord-row"><b>Service</b><span>' + ordEsc(o.service || '-') + '</span></div>'
       + '<div class="ord-row"><b>Work details</b><span>' + ordEsc(o.message || '-') + '</span></div>'
       + '<div class="ord-row"><b>Location</b><span>' + (mapUrl ? '<a href="' + ordEsc(mapUrl) + '" target="_blank" rel="noopener">📍 Google Map mein dekhein</a>' : 'Customer ne location nahi di') + '</span></div>'
