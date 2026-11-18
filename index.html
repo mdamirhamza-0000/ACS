@@ -362,6 +362,13 @@
     const u = window.currentFirebaseUser || fbAuth.currentUser;
     return !!(u && u.email && u.emailVerified && u.email.toLowerCase() === ORDERS_ADMIN_EMAIL);
   };
+  window.refreshOrdersUser = async function(){
+    const u = fbAuth.currentUser;
+    if(!u) return;
+    await u.reload();
+    try{ await u.getIdToken(true); }catch(e){}
+    window.currentFirebaseUser = fbAuth.currentUser;
+  };
   window.fetchServiceOrders = async function(){
     if(!window.isOrdersAdmin()) throw new Error('not-admin');
     const snap = await get(ref(fbDb, 'serviceOrders'));
@@ -5278,9 +5285,17 @@ async function ordersLoad(silent){
   const view = document.getElementById('ordersFormView');
   const list = document.getElementById('ordersList'), body = document.getElementById('ordersBody'), locked = document.getElementById('ordersLocked');
   if(!view || !list) return;
+  if(!ordIsAdmin() && typeof window.refreshOrdersUser === 'function'){
+    // Login ke baad email-verified ka status purana ho sakta hai: Firebase se taaza karo
+    try{ await window.refreshOrdersUser(); }catch(e){}
+  }
   if(!ordIsAdmin()){
     ordersCache = []; ordUpdateBadge();
-    ordShowLocked('Service orders can only be seen by the Avrok owner account.<br><b>' + ordEsc(window.ORDERS_ADMIN_EMAIL || 'avrok.ac.services.01@gmail.com') + '</b><br>Please sign in with this Google account.<br><button type="button" onclick="window.signInWithGoogle && window.signInWithGoogle()">Sign in with Google</button>');
+    const cu = window.currentFirebaseUser;
+    const diag = cu
+      ? '<br><small>Abhi login: <b>' + ordEsc(cu.email || '(no email)') + '</b> • email verified: <b>' + (cu.emailVerified ? 'yes' : 'NO') + '</b></small>'
+      : '<br><small>Abhi koi account login nahi hai.</small>';
+    ordShowLocked('Service orders can only be seen by the Avrok owner account.<br><b>' + ordEsc(window.ORDERS_ADMIN_EMAIL || 'avrok.ac.services.01@gmail.com') + '</b>' + diag + '<br><button type="button" onclick="ordersLoad()">Try again</button> <button type="button" onclick="window.signInWithGoogle && window.signInWithGoogle()">Sign in with Google</button>');
     return;
   }
   locked.style.display = 'none'; body.style.display = 'block';
