@@ -45,5 +45,5 @@ jobs:
           gh release delete latest --cleanup-tag --yes || true
           gh release create latest AVROK-ACS.apk \
             --title "AVROK ACS (latest APK)" \
-            --notes "Latest debug APK. Opens https://mdamirhamza-0000.github.io/ACS/" \
+            --notes "Latest debug APK. Opens https://avrok-acs-electrician.vercel.app" \
             --latest
