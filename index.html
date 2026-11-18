@@ -381,7 +381,16 @@
   };
   window.fetchServiceOrders = async function(){
     if(!window.isOrdersAdmin()) throw new Error('not-admin');
-    const snap = await get(ref(fbDb, 'serviceOrders'));
+    let snap;
+    try{
+      snap = await get(ref(fbDb, 'serviceOrders'));
+    }catch(err){
+      // Email verify hone ke baad purana login token "unverified" hota hai: taaza token lekar ek baar dobara try
+      if(/permission/i.test(String((err && (err.code || err.message)) || ''))){
+        try{ await fbAuth.currentUser.reload(); await fbAuth.currentUser.getIdToken(true); }catch(e){}
+        snap = await get(ref(fbDb, 'serviceOrders'));
+      } else { throw err; }
+    }
     const list = [];
     if(snap.exists()){
       snap.forEach(ch => { const v = ch.val(); if(v && typeof v === 'object') list.push(Object.assign({ id: ch.key }, v)); });
