@@ -1077,21 +1077,21 @@
     box-shadow: 0 0 0 1px #e3e6ec;
   }
   .ai-chat-header {
-    background: linear-gradient(135deg, #1a3e8c, #14213d); color: #fff; padding: 10px 10px;
-    display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 4px; flex-shrink: 0;
-    padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    background: linear-gradient(135deg, #1f4aa3 0%, #16336f 100%); color: #fff; padding: 8px 8px;
+    display: grid; grid-template-columns: 42px 1fr 42px; align-items: center; gap: 4px; flex-shrink: 0;
+    border-radius: 0 0 18px 18px; box-shadow: 0 6px 16px rgba(10,25,60,.28); position: relative; z-index: 2;
   }
   .ai-hdr-btn {
-    width: 44px; height: 44px; border: none; border-radius: 50%; background: transparent; color: #fff;
+    width: 42px; height: 42px; border: none; border-radius: 50%; background: transparent; color: #fff;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
   }
   .ai-hdr-btn:active { background: rgba(255,255,255,.16); }
-  .ai-hdr-btn svg { width: 24px; height: 24px; }
+  .ai-hdr-btn svg { width: 23px; height: 23px; }
   .ai-chat-brand { display: flex; align-items: center; justify-content: center; gap: 10px; min-width: 0; }
-  .ai-chat-brand .ai-logo { width: 36px; height: 36px; flex-shrink: 0; background: #fff; border-radius: 11px; padding: 3px; display: flex; }
+  .ai-chat-brand .ai-logo { width: 34px; height: 34px; flex-shrink: 0; background: #fff; border-radius: 11px; padding: 3px; display: flex; }
   .ai-chat-brand .ai-logo svg { width: 100%; height: 100%; }
-  .ai-chat-title { font-weight: 800; font-size: 16px; line-height: 1.15; }
-  .ai-chat-sub { font-size: 11px; color: #cfe0ff; opacity: .9; margin-top: 1px; }
+  .ai-chat-title { font-weight: 800; font-size: 15.5px; line-height: 1.15; letter-spacing: .3px; }
+  .ai-chat-sub { font-size: 10px; color: #c7d6f5; opacity: .95; margin-top: 2px; }
   .ai-speak-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 4px;
     margin-top: 6px; padding: 3px 10px; border: 1px solid #d5d9e2; border-radius: 14px;
@@ -1307,7 +1307,7 @@
     font-family: 'Segoe UI', Arial, sans-serif;
     background: #eef1f5;
     margin: 0;
-    padding: 20px;
+    padding: 0 20px 20px;
     color: #14213d;
   }
   .qz-app-wrap { max-width: 950px; margin: 0 auto; }
@@ -3699,9 +3699,14 @@ function renderAiMarkdown(text){
 
 // ---------------- Bot ka jawab bol kar sunana (🔊) ----------------
 let aiSpeakingBtn = null;
+let aiAudioCtx = null, aiAudioSrc = null, aiSpeakToken = 0;
+function resetSpeakBtn(btn){ if(btn){ btn.classList.remove('speaking'); btn.textContent = '🔊'; } }
 function stopAiSpeech(){
+  aiSpeakToken++;
   try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e){}
-  if(aiSpeakingBtn){ aiSpeakingBtn.classList.remove('speaking'); aiSpeakingBtn.textContent = '🔊'; aiSpeakingBtn = null; }
+  try { if(aiAudioSrc){ aiAudioSrc.onended = null; aiAudioSrc.stop(); } } catch(e){}
+  aiAudioSrc = null;
+  if(aiSpeakingBtn){ resetSpeakBtn(aiSpeakingBtn); aiSpeakingBtn = null; }
 }
 function cleanTextForSpeech(t){
   return String(t || '')
@@ -3717,29 +3722,92 @@ function cleanTextForSpeech(t){
     .replace(/\s{2,}/g, ' ')
     .trim();
 }
-function speakAiText(text, btn){
-  const synth = window.speechSynthesis;
-  if(!synth || typeof SpeechSynthesisUtterance === 'undefined'){
-    alert('Is phone/browser mein bol kar sunane ki suvidha nahi hai.');
-    return;
+// Android app (WebView) mein phone ki built-in awaaz aksar nahi hoti, isliye
+// Gemini ki apni TTS awaaz (aapki hi API key se) se jawab bulwate hain.
+async function speakWithGemini(clean, btn, token){
+  const apiKey = getAiKey();
+  if(!apiKey) throw new Error('Pehle ⚙ Settings mein Gemini API key daalein.');
+  const text = clean.length > 1800 ? clean.slice(0, 1800) : clean;
+  const models = ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-preview-tts'];
+  let data = null, lastMsg = 'Awaaz nahi ban payi.';
+  for(const m of models){
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text }] }],
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
+        }
+      })
+    });
+    let j = {};
+    try { j = await r.json(); } catch(e){}
+    if(token !== aiSpeakToken) return;
+    const part = j?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    if(r.ok && part){ data = part.inlineData; break; }
+    lastMsg = j?.error?.message || lastMsg;
+    if(r.status === 401 || r.status === 403 || r.status === 400) break;
   }
+  if(!data) throw new Error(lastMsg);
+  const bin = atob(data.data);
+  const bytes = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const rate = parseInt((/rate=(\d+)/.exec(data.mimeType || '') || [])[1] || '24000', 10);
+  const samples = new Int16Array(bytes.buffer, 0, Math.floor(bytes.length / 2));
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if(!AC) throw new Error('Is phone mein audio play nahi ho sakta.');
+  if(!aiAudioCtx) aiAudioCtx = new AC();
+  if(aiAudioCtx.state === 'suspended') await aiAudioCtx.resume();
+  const buf = aiAudioCtx.createBuffer(1, samples.length, rate);
+  const ch = buf.getChannelData(0);
+  for(let i = 0; i < samples.length; i++) ch[i] = samples[i] / 32768;
+  if(token !== aiSpeakToken) return;
+  const src = aiAudioCtx.createBufferSource();
+  src.buffer = buf;
+  src.connect(aiAudioCtx.destination);
+  src.onended = () => { if(aiSpeakingBtn === btn){ resetSpeakBtn(btn); aiSpeakingBtn = null; } aiAudioSrc = null; };
+  aiAudioSrc = src;
+  btn.textContent = '⏹ Stop';
+  src.start();
+}
+
+async function speakAiText(text, btn){
   if(aiSpeakingBtn === btn){ stopAiSpeech(); return; } // dobara dabane par ruk jao
   stopAiSpeech();
   const clean = cleanTextForSpeech(text);
   if(!clean) return;
-  const u = new SpeechSynthesisUtterance(clean);
-  u.lang = 'hi-IN'; // Hindi/Hinglish dono ke liye
-  u.rate = 1; u.pitch = 1;
-  try {
-    const voices = synth.getVoices() || [];
-    const v = voices.find(x => /^hi[-_]IN/i.test(x.lang)) || voices.find(x => /^en[-_]IN/i.test(x.lang));
-    if(v) u.voice = v;
-  } catch(e){}
-  const done = () => { if(aiSpeakingBtn === btn){ btn.classList.remove('speaking'); btn.textContent = '🔊'; aiSpeakingBtn = null; } };
-  u.onend = done; u.onerror = done;
+  const token = aiSpeakToken;
   aiSpeakingBtn = btn;
-  btn.classList.add('speaking'); btn.textContent = '⏹ Stop';
-  try { synth.speak(u); } catch(e){ done(); alert('Awaaz chalu nahi ho payi.'); }
+  btn.classList.add('speaking');
+
+  // 1) Phone ki apni awaaz (agar sach mein maujood ho)
+  const synth = window.speechSynthesis;
+  if(synth && typeof SpeechSynthesisUtterance !== 'undefined' && (synth.getVoices() || []).length){
+    try {
+      const u = new SpeechSynthesisUtterance(clean);
+      u.lang = 'hi-IN';
+      const v = synth.getVoices().find(x => /^hi[-_]IN/i.test(x.lang)) || synth.getVoices().find(x => /^en[-_]IN/i.test(x.lang));
+      if(v) u.voice = v;
+      const done = () => { if(aiSpeakingBtn === btn){ resetSpeakBtn(btn); aiSpeakingBtn = null; } };
+      u.onend = done; u.onerror = done;
+      btn.textContent = '⏹ Stop';
+      synth.speak(u);
+      return;
+    } catch(e){}
+  }
+
+  // 2) Gemini TTS
+  btn.textContent = '⏳';
+  try {
+    await speakWithGemini(clean, btn, token);
+  } catch(e){
+    if(token === aiSpeakToken){
+      resetSpeakBtn(btn); aiSpeakingBtn = null;
+      alert('Awaaz nahi chal payi: ' + (e.message || e));
+    }
+  }
 }
 function attachSpeakBtn(div, text){
   div.querySelector('.ai-speak-row')?.remove();
