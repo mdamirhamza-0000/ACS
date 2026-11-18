@@ -13,7 +13,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getDatabase, ref, update, remove, get, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
   import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCredential, onAuthStateChanged, signOut, deleteUser, signInWithEmailAndPassword, createUserWithEmailAndPassword, EmailAuthProvider, linkWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithCredential, onAuthStateChanged, signOut, deleteUser, signInWithEmailAndPassword, createUserWithEmailAndPassword, EmailAuthProvider, linkWithCredential, updatePassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBug9lURVExnAMljPTFNpTMOBH7am7ykVQ",
@@ -361,6 +361,16 @@
   window.isOrdersAdmin = function(){
     const u = window.currentFirebaseUser || fbAuth.currentUser;
     return !!(u && u.email && u.emailVerified && u.email.toLowerCase() === ORDERS_ADMIN_EMAIL);
+  };
+  window.sendOwnerVerification = async function(){
+    const u = fbAuth.currentUser;
+    if(!u){ alert('Pehle login karein.'); return; }
+    try{
+      await sendEmailVerification(u);
+      alert('Verification link ' + (u.email || 'aapke email') + ' par bhej diya hai.\n\nGmail kholkar us link par click karein (Spam folder bhi dekhein), phir yahan aakar "Try again" dabayein.');
+    }catch(e){
+      alert('Verification email nahi ja paya: ' + ((e && e.message) || e));
+    }
   };
   window.refreshOrdersUser = async function(){
     const u = fbAuth.currentUser;
@@ -5295,7 +5305,7 @@ async function ordersLoad(silent){
     const diag = cu
       ? '<br><small>Abhi login: <b>' + ordEsc(cu.email || '(no email)') + '</b> • email verified: <b>' + (cu.emailVerified ? 'yes' : 'NO') + '</b></small>'
       : '<br><small>Abhi koi account login nahi hai.</small>';
-    ordShowLocked('Service orders can only be seen by the Avrok owner account.<br><b>' + ordEsc(window.ORDERS_ADMIN_EMAIL || 'avrok.ac.services.01@gmail.com') + '</b>' + diag + '<br><button type="button" onclick="ordersLoad()">Try again</button> <button type="button" onclick="window.signInWithGoogle && window.signInWithGoogle()">Sign in with Google</button>');
+    ordShowLocked('Service orders can only be seen by the Avrok owner account.<br><b>' + ordEsc(window.ORDERS_ADMIN_EMAIL || 'avrok.ac.services.01@gmail.com') + '</b>' + diag + '<br><button type="button" onclick="ordersLoad()">Try again</button> ' + (cu && !cu.emailVerified ? '<button type="button" onclick="window.sendOwnerVerification()">Verify email</button> ' : '') + '<button type="button" onclick="window.signInWithGoogle && window.signInWithGoogle()">Sign in with Google</button>');
     return;
   }
   locked.style.display = 'none'; body.style.display = 'block';
