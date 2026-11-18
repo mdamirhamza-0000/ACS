@@ -5307,7 +5307,9 @@ function ordersRender(){
   list.innerHTML = ordersCache.map(o => {
     const done = o.status === 'done';
     const ph = ordPhone(o.phone);
-    const acts = (ph ? '<a class="wa" href="https://wa.me/' + ph + '" target="_blank" rel="noopener">WhatsApp</a><a href="tel:+' + ph + '">Call</a>' : '')
+    const mapUrl = (o.mapsLink && /^https:\/\/(www\.)?google\.com\/maps/.test(o.mapsLink)) ? o.mapsLink : '';
+    const acts = (mapUrl ? '<a href="' + ordEsc(mapUrl) + '" target="_blank" rel="noopener">📍 Map</a>' : '')
+      + (ph ? '<a class="wa" href="https://wa.me/' + ph + '" target="_blank" rel="noopener">WhatsApp</a><a href="tel:+' + ph + '">Call</a>' : '')
       + '<button type="button" onclick="ordersToggleDone(\'' + ordEsc(o.id) + '\')">' + (done ? 'Mark as new' : 'Mark as done') + '</button>'
       + '<button type="button" class="del" onclick="ordersDelete(\'' + ordEsc(o.id) + '\')">Delete</button>';
     return '<div class="ord-card' + (done ? '' : ' is-new') + (openIds.has(o.id) ? ' open' : '') + '" data-id="' + ordEsc(o.id) + '">'
@@ -5317,6 +5319,7 @@ function ordersRender(){
       + '<div class="ord-row"><b>Mobile</b><span>' + ordEsc(o.phone || 'Not given (see WhatsApp)') + '</span></div>'
       + '<div class="ord-row"><b>Service</b><span>' + ordEsc(o.service || '-') + '</span></div>'
       + '<div class="ord-row"><b>Work details</b><span>' + ordEsc(o.message || '-') + '</span></div>'
+      + '<div class="ord-row"><b>Location</b><span>' + (mapUrl ? '<a href="' + ordEsc(mapUrl) + '" target="_blank" rel="noopener">📍 Google Map mein dekhein</a>' : 'Customer ne location nahi di') + '</span></div>'
       + '<div class="ord-row"><b>Received</b><span>' + ordEsc(ordFmt(o.createdAt)) + '</span></div>'
       + '<div class="ord-row"><b>From</b><span>' + ordEsc(o.source || '-') + '</span></div>'
       + '<div class="ord-act">' + acts + '</div></div></div>';
