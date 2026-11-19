@@ -354,7 +354,6 @@ footer p{font-size:14.5px;margin-bottom:6px}
         <input id="phone" name="phone" type="tel" placeholder="Mobile number (optional)">
         <select id="service" name="service"><option>House Wiring</option><option>Electrical Repairing</option><option>DB &amp; MCB Installation</option><option>Panel Work</option><option>Geyser Installation &amp; Repair</option><option>Fan &amp; Appliance Installation</option><option>Lighting Solutions</option><option>CCTV &amp; Wi-Fi Camera</option><option>Other</option></select>
         <textarea id="message" name="message" placeholder="Describe the work you need"></textarea>
-        <div class="locst" style="font-size:12.5px;font-weight:600;line-height:1.4;color:#b45309"></div>
         <button class="btn btn-green" type="submit">💬 Send on WhatsApp</button>
       </form>
     </div>
@@ -378,7 +377,7 @@ footer p{font-size:14.5px;margin-bottom:6px}
 /* ---- Customer location: site khulte hi permission maango, booking ke saath Google Maps link bhejo ---- */
 var userLoc=null;
 function locLink(l){return l?'https://www.google.com/maps?q='+l.lat+','+l.lng:'';}
-function setLocStatus(t,ok){document.querySelectorAll('.locst').forEach(function(el){el.textContent=t;el.style.color=ok?'#1b7f3b':'#b45309';});}
+function setLocStatus(t,ok){/* location ka message form mein nahi dikhate */}
 /* Customer ne location allow ki: booking na kare tab bhi Avrok app ke Service Orders mein ek entry (har session mein sirf ek baar) */
 function sendVisitLead(){
  if(!userLoc)return;
@@ -437,7 +436,6 @@ function sendWhatsApp(e){
     <input name="phone" type="tel" placeholder="Mobile number (optional)">
     <select name="service"><option>House Wiring</option><option>Electrical Repairing</option><option>DB &amp; MCB Installation</option><option>Panel Work</option><option>Geyser Installation &amp; Repair</option><option>Fan &amp; Appliance Installation</option><option>Lighting Solutions</option><option>CCTV &amp; Wi-Fi Camera</option><option>Other</option></select>
     <textarea name="message" placeholder="Describe the work you need"></textarea>
-    <div class="locst" style="font-size:13px;font-weight:600;line-height:1.4;color:#b45309"></div>
     <button class="btn btn-green" type="submit">💬 Send on WhatsApp</button>
   </form>
   </div>
