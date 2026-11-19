@@ -269,7 +269,9 @@
   const isOwnerUser = (u) => !!(u && u.email && u.email.toLowerCase() === EMPLOYEE_OWNER_EMAIL);
   const isEmployeeUser = (u) => !!(u && u.email && u.email.toLowerCase().endsWith(EMP_DOMAIN));
   const gateEl = () => document.getElementById('roleGate');
-  const showGate = () => {
+  const pushTrap = () => { try{ history.pushState({ avrok: 1 }, ''); }catch(e){} };
+  const showGate = (forget) => {
+    if(forget){ try{ localStorage.removeItem('avrokRole'); }catch(e){} }
     gateEl()?.classList.remove('hidden'); activeRole = null; rolePending = null;
     document.body.classList.remove('role-manager', 'role-employee');
     window.currentEmployeeOk = false;
@@ -277,6 +279,8 @@
   };
   const hideGate = (role) => {
     gateEl()?.classList.add('hidden'); activeRole = role; rolePending = null;
+    try{ localStorage.setItem('avrokRole', role); }catch(e){}
+    pushTrap();
     document.body.classList.remove('role-manager', 'role-employee');
     document.body.classList.add('role-' + role);
     if(role === 'employee'){ try{ if(window.setDocMode) window.setDocMode('orders'); }catch(e){} } // employee ko pehle Service Orders
@@ -285,8 +289,8 @@
   const setLoginMsg = (t) => { const e = document.getElementById('loginError'); if(e) e.textContent = t || ''; };
   const setEmpMsg = (t) => { const e = document.getElementById('empLoginErr'); if(e) e.textContent = t || ''; };
   // onAuthStateChanged login screen ko chhupa deta hai, isliye thoda ruk kar dikhate hain
-  const showLoginScreen = () => setTimeout(() => { const ls = document.getElementById('loginScreen'); if(ls) ls.style.display = 'flex'; const cb = document.getElementById('loginCloseBtn'); if(cb) cb.style.display = 'flex'; }, 80);
-  const showEmpLogin = () => { const s = document.getElementById('empLoginScreen'); if(s) s.style.display = 'flex'; };
+  const showLoginScreen = () => { pushTrap(); setTimeout(() => { const ls = document.getElementById('loginScreen'); if(ls) ls.style.display = 'flex'; const cb = document.getElementById('loginCloseBtn'); if(cb) cb.style.display = 'flex'; }, 80); };
+  const showEmpLogin = () => { const s = document.getElementById('empLoginScreen'); if(s && s.style.display !== 'flex') pushTrap(); if(s) s.style.display = 'flex'; };
   const hideEmpLogin = () => { const s = document.getElementById('empLoginScreen'); if(s) s.style.display = 'none'; };
 
   // Official Manager
@@ -334,7 +338,17 @@
     const ls = document.getElementById('loginScreen'); if(ls) ls.style.display = 'none';
     hideEmpLogin(); showGate();
   };
+  let autoSettled = false;
+  setTimeout(() => { if(window.__avrokAutoRole){ window.__avrokAutoRole = null; autoSettled = true; showGate(false); } }, 9000); // internet na ho to chooser dikhao
   window.avrokRoleOnAuth = async function(user){
+    if(window.__avrokAutoRole && !autoSettled){
+      autoSettled = true;
+      const r = window.__avrokAutoRole; window.__avrokAutoRole = null;
+      if(r === 'manager' && isOwnerUser(user)){ hideGate('manager'); return; }
+      if(r === 'employee' && isEmployeeUser(user) && await verifyEmployee(user)){ hideGate('employee'); return; }
+      showGate(true); // login khatam ho chuka: chooser dikhao
+      return;
+    }
     if(rolePending === 'manager'){
       if(isOwnerUser(user)){
         const ls = document.getElementById('loginScreen'); if(ls) ls.style.display = 'none';
@@ -355,9 +369,28 @@
       }
     } else if(activeRole){
       const ok = activeRole === 'manager' ? isOwnerUser(user) : isEmployeeUser(user);
-      if(!ok) showGate(); // logout ya galat account: pehle page par wapas
+      if(!ok) showGate(true); // logout ya galat account: pehle page par wapas
     }
   };
+
+  // ---------------- ANDROID BACK: app band hone ki jagah pehle chooser par jao ----------------
+  const isShown = (id) => { const e = document.getElementById(id); return !!e && getComputedStyle(e).display !== 'none'; };
+  window.addEventListener('popstate', () => {
+    // 1) khule popup / menu band karo
+    const dp = document.getElementById('drawerPanel');
+    if(dp && dp.classList.contains('open')){ try{ window.closeDrawer(); }catch(e){} pushTrap(); return; }
+    if(isShown('aiChatOverlay')){ try{ window.closeAiChat(); }catch(e){} pushTrap(); return; }
+    if(isShown('accountOverlay')){ try{ window.closeAccountSheet(); }catch(e){ document.getElementById('accountOverlay').style.display = 'none'; } pushTrap(); return; }
+    if(isShown('empMgrOverlay')){ window.closeEmpManager(); pushTrap(); return; }
+    for(const id of ['historyOverlay','quotHistoryOverlay','searchOverlay','sigOverlay','setPasswordOverlay']){
+      if(isShown(id)){ document.getElementById(id).style.display = 'none'; pushTrap(); return; }
+    }
+    // 2) login screen khula ho to chooser par
+    if(isShown('loginScreen') || isShown('empLoginScreen')){ window.avrokRoleBack(); return; }
+    // 3) app ke andar ho to chooser (role chunne wale page) par
+    if(activeRole){ showGate(); return; }
+    // 4) chooser par ho to kuch nahi: agla back app band karega
+  });
 
   // ---------------- MANAGER: Employees banana / band karna ----------------
   const emMsg = (t, ok) => { const e = document.getElementById('empMgrMsg'); if(e){ e.textContent = t || ''; e.style.color = ok ? '#1b7f3b' : '#c0392b'; } };
@@ -1763,7 +1796,7 @@
   <img class="rg-logo" src="avrok-logo.jpg" alt="">
   <h1 class="rg-title">AVROK <em>AC SERVICE</em></h1>
   <p class="rg-sub">Aap kaun hain? Apna option chunein</p>
-  <button type="button" class="rg-btn rg-cust" onclick="window.location.href='customer/'">
+  <button type="button" class="rg-btn rg-cust" onclick="try{localStorage.setItem('avrokRole','customer');sessionStorage.setItem('avrokAutoDone','1');}catch(e){} window.location.href='customer/'">
     <span class="rg-ico">🙋</span><span><b>Customer</b><small>Electrician / AC service book karein — bina login</small></span>
   </button>
   <button type="button" class="rg-btn rg-emp" onclick="window.avrokEmployeeEnter()">
@@ -1774,6 +1807,18 @@
   </button>
   <div class="rg-note">AVROK AC SERVICE • Gurgaon</div>
 </div>
+<script>
+/* Pichli baar jis role se login kiya tha, app dobara kholne par seedha wahi khule (is session mein sirf ek baar). */
+(function(){ try{
+  var role = localStorage.getItem('avrokRole');
+  if(role && !sessionStorage.getItem('avrokAutoDone')){
+    sessionStorage.setItem('avrokAutoDone','1');
+    document.getElementById('roleGate').classList.add('hidden');
+    if(role === 'customer'){ location.href = 'customer/'; }
+    else if(role === 'manager' || role === 'employee'){ window.__avrokAutoRole = role; }
+  }
+}catch(e){} })();
+</script>
 <div id="empLoginScreen">
   <div class="emp-card">
     <button type="button" class="emp-back" aria-label="Back" onclick="window.avrokRoleBack()">←</button>
