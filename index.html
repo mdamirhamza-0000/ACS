@@ -258,6 +258,44 @@
   window.closeLoginCard = function(){
     const ls = document.getElementById('loginScreen');
     if(ls) ls.style.display = 'none';
+    if(window.avrokRoleBack) window.avrokRoleBack(); // Employee login se wapas pehle page par
+  };
+
+  // ---------------- ROLE GATE: Customer / Employee ----------------
+  // Customer: bina login kesug wali website (customer/). Employee: sirf owner account se Billing system.
+  const EMPLOYEE_OWNER_EMAIL = 'avrok.ac.services.01@gmail.com';
+  let employeePending = false, employeeActive = false;
+  const isOwnerUser = (u) => !!(u && u.email && u.email.toLowerCase() === EMPLOYEE_OWNER_EMAIL);
+  const gateEl = () => document.getElementById('roleGate');
+  const showGate = () => { gateEl()?.classList.remove('hidden'); employeeActive = false; };
+  const hideGate = () => { gateEl()?.classList.add('hidden'); employeeActive = true; employeePending = false; };
+  const setLoginMsg = (t) => { const e = document.getElementById('loginError'); if(e) e.textContent = t || ''; };
+  // onAuthStateChanged login screen ko chhupa deta hai, isliye thoda ruk kar dikhate hain
+  const showLoginScreen = () => setTimeout(() => { const ls = document.getElementById('loginScreen'); if(ls) ls.style.display = 'flex'; const cb = document.getElementById('loginCloseBtn'); if(cb) cb.style.display = 'flex'; }, 80);
+  window.avrokEmployeeEnter = async function(){
+    employeePending = true;
+    const u = fbAuth.currentUser;
+    if(isOwnerUser(u)){ hideGate(); return; }
+    if(u){ try{ await signOut(fbAuth); }catch(e){} } // galat account ho to hata do
+    setLoginMsg('Employee login sirf ' + EMPLOYEE_OWNER_EMAIL + ' account se hota hai.');
+    showLoginScreen();
+  };
+  window.avrokRoleBack = function(){ employeePending = false; showGate(); };
+  window.avrokRoleOnAuth = function(user){
+    if(employeePending){
+      if(isOwnerUser(user)){
+        const ls = document.getElementById('loginScreen'); if(ls) ls.style.display = 'none';
+        setLoginMsg(''); hideGate();
+      } else if(user){
+        signOut(fbAuth).catch(()=>{});
+        setLoginMsg('Yeh account Employee login ke liye allowed nahi hai. Sirf ' + EMPLOYEE_OWNER_EMAIL + ' use karein.');
+        showLoginScreen();
+      } else {
+        showLoginScreen(); // abhi login nahi hai: login screen dikhao
+      }
+    } else if(employeeActive && !isOwnerUser(user)){
+      showGate(); // logout ya galat account: pehle page par wapas
+    }
   };
   window.updateDrawerLoginBtn();
 
@@ -267,6 +305,7 @@
   onAuthStateChanged(fbAuth, (user) => {
     window.currentFirebaseUser = user || null;
     window.updateDrawerLoginBtn();
+    if(typeof window.avrokRoleOnAuth === 'function') window.avrokRoleOnAuth(user);
     if(typeof window.refreshOrdersAccess === 'function') window.refreshOrdersAccess();
     // Bill / quotation numbers depend on the account, so show the right next number now
     if(typeof window.refreshDocumentNumbers === 'function') window.refreshDocumentNumbers();
@@ -1522,6 +1561,24 @@
 
 
   /* ---------------- APP OPEN SPLASH (5s) ---------------- */
+  /* ---------------- ROLE GATE (1st page: Customer / Employee) ---------------- */
+  #roleGate{position:fixed;inset:0;z-index:19000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:14px;
+    background:radial-gradient(circle at 50% 22%,#17408a 0%,#0b1f4a 55%,#050c1c 100%);color:#fff;overflow-y:auto;}
+  #roleGate.hidden{display:none;}
+  #roleGate .rg-logo{width:96px;height:96px;border-radius:24px;object-fit:cover;box-shadow:0 10px 30px rgba(0,0,0,.45);background:#fff;}
+  #roleGate h1.rg-title{color:#fff !important;}
+  #roleGate .rg-title{font-size:24px;font-weight:800;letter-spacing:.6px;margin:4px 0 0;text-align:center;}
+  #roleGate .rg-title em{font-style:normal;color:#f5b800;}
+  #roleGate .rg-sub{font-size:13px;color:#c7d6f5;margin:0 0 10px;text-align:center;}
+  #roleGate .rg-btn{width:100%;max-width:380px;display:flex;align-items:center;gap:14px;text-align:left;border:none;border-radius:18px;padding:16px 18px;cursor:pointer;
+    font-family:inherit;box-shadow:0 8px 22px rgba(0,0,0,.35);}
+  #roleGate .rg-btn:active{transform:scale(.985);}
+  #roleGate .rg-ico{font-size:32px;line-height:1;flex-shrink:0;}
+  #roleGate .rg-btn b{display:block;font-size:17px;}
+  #roleGate .rg-btn small{display:block;font-size:12.5px;margin-top:3px;opacity:.85;}
+  #roleGate .rg-cust{background:#f5b800;color:#14213d;}
+  #roleGate .rg-emp{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);}
+  #roleGate .rg-note{font-size:11.5px;color:#9fb4de;margin-top:8px;text-align:center;}
   #avrokSplash{position:fixed;inset:0;z-index:30000;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(circle at 50% 38%,#0d2d62 0%,#02050b 72%);animation:splashOut .7s ease 4.3s forwards;}
   .splash-stage{position:relative;width:min(62vw,300px);height:min(62vw,300px);}
   .splash-logo{position:relative;width:100%;height:100%;border-radius:50%;box-shadow:0 0 60px rgba(46,168,255,.55);animation:splashLogoIn 1.1s cubic-bezier(.2,.8,.2,1) both,splashFloat 3s ease-in-out 1.1s infinite;}
@@ -1557,6 +1614,19 @@
   </div>
   <div class="splash-title">AVROK <em>AC SERVICE</em></div>
   <div class="splash-bar"><span></span></div>
+</div>
+<script>try{ if(sessionStorage.getItem('avrokSplashSeen')){ var _sp=document.getElementById('avrokSplash'); if(_sp) _sp.remove(); } else { sessionStorage.setItem('avrokSplashSeen','1'); } }catch(e){}</script>
+<div id="roleGate">
+  <img class="rg-logo" src="avrok-logo.jpg" alt="">
+  <h1 class="rg-title">AVROK <em>AC SERVICE</em></h1>
+  <p class="rg-sub">Aap kaun hain? Apna option chunein</p>
+  <button type="button" class="rg-btn rg-cust" onclick="window.location.href='customer/'">
+    <span class="rg-ico">🙋</span><span><b>Customer</b><small>Electrician / AC service book karein — bina login</small></span>
+  </button>
+  <button type="button" class="rg-btn rg-emp" onclick="window.avrokEmployeeEnter()">
+    <span class="rg-ico">🧾</span><span><b>Employee Login</b><small>ACS Billing system — sirf owner account</small></span>
+  </button>
+  <div class="rg-note">AVROK AC SERVICE • Gurgaon</div>
 </div>
 <!-- Google Login: billing app is shown only after Firebase Authentication succeeds. -->
 <div id="loginScreen">
