@@ -190,13 +190,20 @@ footer p{font-size:14.5px;margin-bottom:6px}
 .fixed-buttons .call{background:var(--navy);color:#fff}
 
 
-/* Request popup */
-.rqm{position:fixed;inset:0;z-index:120;background:rgba(7,15,32,.72);display:grid;place-items:center;overflow:hidden}
+/* Request screen: poora page, upar-left ← back icon */
+.rqm{position:fixed;inset:0;z-index:120;background:#f4f6fb;display:block;overflow:hidden}
 .rqm[hidden]{display:none}
-.rqc{width:400px;max-width:none;background:#fff;border-radius:20px;padding:26px 24px 24px;border-top:6px solid var(--yellow);box-shadow:0 30px 70px rgba(0,0,0,.5);position:relative;transform-origin:center center}
-.rqc h3{font:700 21px Poppins,sans-serif;color:var(--navy);margin-bottom:4px}
-.rqc .sub{font-size:13.5px;color:var(--muted);margin-bottom:14px}
-.rqx{position:absolute;top:8px;right:12px;background:none;border:0;font-size:32px;line-height:1;cursor:pointer;color:var(--navy)}
+.rqc{position:absolute;left:0;top:0;width:100%;height:100%;box-sizing:border-box;background:#f4f6fb;display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;transform-origin:top left}
+.rqh{display:flex;align-items:center;gap:6px;background:var(--navy);color:#fff;padding:10px 12px;flex-shrink:0;position:sticky;top:0;z-index:2}
+.rqh h3{font:700 19px Poppins,sans-serif;color:#fff;margin:0}
+.rqx{width:44px;height:44px;border:0;border-radius:50%;background:transparent;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0}
+.rqx:active{background:rgba(255,255,255,.18)}
+.rqx svg{width:26px;height:26px}
+.rqb{padding:20px 18px 28px;max-width:560px;width:100%;margin:0 auto;box-sizing:border-box}
+.rqc .sub{font-size:14.5px;color:var(--muted);margin-bottom:16px}
+.rqc .form{display:grid;gap:12px}
+.rqc .form input,.rqc .form select,.rqc .form textarea{width:100%;box-sizing:border-box;font-size:16px;padding:14px 14px;border-radius:12px}
+.rqc .form textarea{min-height:140px}
 
 /* Call popup (embedded view only) */
 .cm{position:fixed;inset:0;background:rgba(0,0,0,.65);display:grid;place-items:center;z-index:100;padding:20px}.cm[hidden]{display:none}
@@ -419,34 +426,38 @@ function sendWhatsApp(e){
 }
 </script>
 <div id="rqm" class="rqm" hidden><div class="rqc" id="rqc" role="dialog" aria-modal="true" aria-label="Request a Service">
-  <button type="button" class="rqx" id="rqx" aria-label="Close">×</button>
-  <h3>Request a Service</h3><div class="sub">Fill in the details and send on WhatsApp.</div>
+  <div class="rqh">
+    <button type="button" class="rqx" id="rqx" aria-label="Back" title="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 5l-7 7 7 7"/></svg></button>
+    <h3>Request a Service</h3>
+  </div>
+  <div class="rqb">
+  <div class="sub">Fill in the details and send on WhatsApp.</div>
   <form class="form" onsubmit="sendWhatsApp(event)">
     <input name="name" placeholder="Your name" required>
     <input name="phone" type="tel" placeholder="Mobile number (optional)">
     <select name="service"><option>House Wiring</option><option>Electrical Repairing</option><option>DB &amp; MCB Installation</option><option>Panel Work</option><option>Geyser Installation &amp; Repair</option><option>Fan &amp; Appliance Installation</option><option>Lighting Solutions</option><option>CCTV &amp; Wi-Fi Camera</option><option>Other</option></select>
     <textarea name="message" placeholder="Describe the work you need"></textarea>
-        <div class="locst" style="font-size:12.5px;font-weight:600;line-height:1.4;color:#b45309"></div>
+    <div class="locst" style="font-size:13px;font-weight:600;line-height:1.4;color:#b45309"></div>
     <button class="btn btn-green" type="submit">💬 Send on WhatsApp</button>
   </form>
+  </div>
 </div></div>
 <script>
 (function(){
  var m=document.getElementById('rqm'),c=document.getElementById('rqc');
- function fit(){ // keep the popup centred in what the person actually sees, at a readable size
+ function fit(){ // page ko dikhne wali screen ke barabar, normal (readable) size mein rakho
   var v=window.visualViewport;
-  if(!v){m.style.cssText='';c.style.transform='';return;}
+  if(!v){m.style.cssText='';c.style.cssText='';return;}
   m.style.left=v.offsetLeft+'px';m.style.top=v.offsetTop+'px';m.style.right='auto';m.style.bottom='auto';
   m.style.width=v.width+'px';m.style.height=v.height+'px';
-  c.style.transform='none';
-  var s=Math.min(1/v.scale,(v.width*.94)/c.offsetWidth,(v.height*.94)/c.offsetHeight);
-  c.style.transform='scale('+s+')';
+  c.style.width=(v.width*v.scale)+'px';c.style.height=(v.height*v.scale)+'px';
+  c.style.transform='scale('+(1/v.scale)+')';
  }
- function open(){m.hidden=false;fit();setTimeout(function(){var i=c.querySelector('input');if(i)try{i.focus({preventScroll:true});}catch(x){}},80);}
- function close(){m.hidden=true;}
+ function open(){m.hidden=false;fit();try{history.pushState({rq:1},'');}catch(x){}setTimeout(function(){var i=c.querySelector('input');if(i)try{i.focus({preventScroll:true});}catch(x){}},120);}
+ function close(){if(m.hidden)return;m.hidden=true;try{if(history.state&&history.state.rq)history.back();}catch(x){}}
  document.querySelectorAll('[data-open="rq"]').forEach(function(b){b.addEventListener('click',open);});
  document.getElementById('rqx').addEventListener('click',close);
- m.addEventListener('click',function(e){if(e.target===m)close();});
+ window.addEventListener('popstate',function(){m.hidden=true;});
  document.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
  if(window.visualViewport){visualViewport.addEventListener('resize',function(){if(!m.hidden)fit();});visualViewport.addEventListener('scroll',function(){if(!m.hidden)fit();});}
 })();
