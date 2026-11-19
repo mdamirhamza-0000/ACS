@@ -171,6 +171,12 @@ section{padding:84px 0}
 .form label{display:none}
 .form input,.form select,.form textarea{width:100%;padding:14px 16px;border:1.5px solid #d4dbe8;border-radius:12px;font:500 15.5px Inter,sans-serif;color:var(--ink);background:#fafbfd;transition:.15s}
 .form textarea{min-height:120px;resize:vertical}
+.visitbox{border:1.5px solid #d4dbe8;border-radius:14px;padding:12px 14px 14px;background:#fff}
+.visitbox .vt{font:700 14px Inter,sans-serif;color:var(--navy);margin-bottom:10px}
+.visitbox .vrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.visitbox .vcol span{display:block;font:600 12px Inter,sans-serif;color:var(--muted);margin-bottom:4px}
+.visitbox input{min-width:0;box-sizing:border-box}
+
 .form input:focus,.form select:focus,.form textarea:focus{outline:none;border-color:var(--yellow-d);background:#fff;box-shadow:0 0 0 4px rgba(255,196,0,.25)}
 .form .btn{padding:16px;font-size:17px}
 
@@ -354,6 +360,7 @@ footer p{font-size:14.5px;margin-bottom:6px}
         <input id="phone" name="phone" type="tel" placeholder="Mobile number (optional)">
         <select id="service" name="service"><option>House Wiring</option><option>Electrical Repairing</option><option>DB &amp; MCB Installation</option><option>Panel Work</option><option>Geyser Installation &amp; Repair</option><option>Fan &amp; Appliance Installation</option><option>Lighting Solutions</option><option>CCTV &amp; Wi-Fi Camera</option><option>Other</option></select>
         <textarea id="message" name="message" placeholder="Describe the work you need"></textarea>
+    <div class="visitbox"><div class="vt">🏠 Aap ghar par kab available hain?</div><div class="vrow"><div class="vcol"><span>Date</span><input type="date" name="visitDate"></div><div class="vcol"><span>Time</span><input type="time" name="visitTime"></div></div></div>
         <button class="btn btn-green" type="submit">💬 Send on WhatsApp</button>
       </form>
     </div>
@@ -403,6 +410,7 @@ function askLocation(){
 }
 try{var _s=sessionStorage.getItem('avrokLoc');if(_s)userLoc=JSON.parse(_s);}catch(x){}
 document.addEventListener('DOMContentLoaded',function(){
+ var _t=new Date(),_m=_t.getFullYear()+'-'+String(_t.getMonth()+1).padStart(2,'0')+'-'+String(_t.getDate()).padStart(2,'0');document.querySelectorAll('input[name="visitDate"]').forEach(function(i){i.min=_m;});
  if(userLoc)setLocStatus('📍 Aapki location mil gayi ✓',true);
  askLocation();
  // agar pehle allow nahi hui thi, form par click karte hi dobara maango
@@ -411,7 +419,16 @@ document.addEventListener('DOMContentLoaded',function(){
 function sendWhatsApp(e){
  e.preventDefault();
  const f=e.target, g=k=>f.querySelector('[name="'+k+'"]').value;
- const n=g('name'), p=g('phone'), s=g('service'), m=g('message');
+ const n=g('name'), p=g('phone'), s=g('service'), m0=g('message');
+ // Ghar par kab available hain: date + time (message ke andar jata hai, taaki Service Orders mein dikhe)
+ const vd=(f.querySelector('[name="visitDate"]')||{}).value||'', vt=(f.querySelector('[name="visitTime"]')||{}).value||'';
+ let visit='';
+ if(vd||vt){
+  let ds='';if(vd){const q=vd.split('-');ds=q.length===3?q[2]+'/'+q[1]+'/'+q[0]:vd;}
+  let ts='';if(vt){const q=vt.split(':'),hh=+q[0];ts=((hh%12)||12)+':'+(q[1]||'00')+' '+(hh>=12?'PM':'AM');}
+  visit=[ds,ts].filter(Boolean).join(', ');
+ }
+ const m=(visit?'Ghar par available: '+visit+(m0.trim()?' | ':''):'')+m0.trim();
 
  // Save the order in Avrok's Firebase (shown in the Avrok AC Service app). WhatsApp opens regardless.
  try{
@@ -419,7 +436,7 @@ function sendWhatsApp(e){
    body:JSON.stringify({name:n.trim().slice(0,100),phone:p.trim().slice(0,20),service:s.slice(0,100),message:m.trim().slice(0,1000),source:(location.hostname||'avrok-acs.kesug.com').slice(0,100),lat:userLoc?userLoc.lat:null,lng:userLoc?userLoc.lng:null,accuracy:userLoc?userLoc.acc:null,mapsLink:locLink(userLoc),status:'new',createdAt:{'.sv':'timestamp'}})
   }).catch(function(){});
  }catch(x){}
- const text=`Hello AVROK, I need electrical service.%0AName: ${encodeURIComponent(n)}`+(p.trim()?`%0AMobile: ${encodeURIComponent(p)}`:'')+`%0AService: ${encodeURIComponent(s)}%0AWork: ${encodeURIComponent(m)}`+(userLoc?`%0ALocation: ${encodeURIComponent(locLink(userLoc))}`:`%0ALocation: (customer ne allow nahi ki)`);
+ const text=`Hello AVROK, I need electrical service.%0AName: ${encodeURIComponent(n)}`+(p.trim()?`%0AMobile: ${encodeURIComponent(p)}`:'')+`%0AService: ${encodeURIComponent(s)}%0AWork: ${encodeURIComponent(m0)}`+(visit?`%0AAvailable at home: ${encodeURIComponent(visit)}`:'')+(userLoc?`%0ALocation: ${encodeURIComponent(locLink(userLoc))}`:`%0ALocation: (customer ne allow nahi ki)`);
  const a=document.createElement('a');a.href='https://wa.me/919155944307?text='+text;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();document.body.removeChild(a);
  f.reset();var pop=document.getElementById('rqm');if(pop&&pop.contains(f))pop.hidden=true;
 }
@@ -436,6 +453,7 @@ function sendWhatsApp(e){
     <input name="phone" type="tel" placeholder="Mobile number (optional)">
     <select name="service"><option>House Wiring</option><option>Electrical Repairing</option><option>DB &amp; MCB Installation</option><option>Panel Work</option><option>Geyser Installation &amp; Repair</option><option>Fan &amp; Appliance Installation</option><option>Lighting Solutions</option><option>CCTV &amp; Wi-Fi Camera</option><option>Other</option></select>
     <textarea name="message" placeholder="Describe the work you need"></textarea>
+    <div class="visitbox"><div class="vt">🏠 Aap ghar par kab available hain?</div><div class="vrow"><div class="vcol"><span>Date</span><input type="date" name="visitDate"></div><div class="vcol"><span>Time</span><input type="time" name="visitTime"></div></div></div>
     <button class="btn btn-green" type="submit">💬 Send on WhatsApp</button>
   </form>
   </div>
