@@ -343,7 +343,7 @@
     "iosHeaderImageDark": "https://s3.amazonaws.com/gonativeio/app_files/lplznqa/app_icon_android.png"
   },
   "permissions": {
-    "usesGeolocation": false,
+    "usesGeolocation": true,
     "androidDownloadToPublicStorage": true,
     "enableWebRTCamera": false,
     "enableWebRTCMicrophone": false,

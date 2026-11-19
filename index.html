@@ -279,6 +279,7 @@
     gateEl()?.classList.add('hidden'); activeRole = role; rolePending = null;
     document.body.classList.remove('role-manager', 'role-employee');
     document.body.classList.add('role-' + role);
+    if(role === 'employee'){ try{ if(window.setDocMode) window.setDocMode('orders'); }catch(e){} } // employee ko pehle Service Orders
     if(typeof window.refreshOrdersAccess === 'function') window.refreshOrdersAccess();
   };
   const setLoginMsg = (t) => { const e = document.getElementById('loginError'); if(e) e.textContent = t || ''; };
@@ -1711,6 +1712,7 @@
   #empMgrMsg{font-size:13px;min-height:18px;margin:6px 0;}
   .mgr-only{display:none !important;}
   body.role-manager .mgr-only{display:flex !important;}
+  body.role-employee [id^="ordersModeBtn"]{order:-1;}
   body.role-employee [id^="quotationModeBtn"],
   body.role-employee .drawer-item[onclick*="openSearchBill"],
   body.role-employee .drawer-item[onclick*="generateCustomerRecordPDF"],
