@@ -172,6 +172,9 @@ section{padding:84px 0}
 .form label{display:none}
 .form input,.form select,.form textarea{width:100%;padding:14px 16px;border:1.5px solid #d4dbe8;border-radius:12px;font:500 15.5px Inter,sans-serif;color:var(--ink);background:#fafbfd;transition:.15s}
 .form textarea{min-height:120px;resize:vertical}
+.cat{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.catbtn{padding:13px 10px;border:1.5px solid #d4dbe8;border-radius:12px;background:#fff;color:var(--navy);font:700 14.5px Inter,sans-serif;cursor:pointer;transition:.15s}
+.catbtn.on{background:var(--navy);color:#fff;border-color:var(--navy);box-shadow:0 4px 12px rgba(10,30,70,.25)}
 .visitbox{border:1.5px solid #d4dbe8;border-radius:14px;padding:12px 14px 14px;background:#fff}
 .visitbox .vt{font:700 14px Inter,sans-serif;color:var(--navy);margin-bottom:10px}
 .visitbox .vrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -359,6 +362,7 @@ footer p{font-size:14.5px;margin-bottom:6px}
       <form class="form" onsubmit="sendWhatsApp(event)">
         <input id="name" name="name" placeholder="Your name" required>
         <input id="phone" name="phone" type="tel" placeholder="Mobile number (optional)">
+    <div class="cat"><input type="hidden" name="category" value="Electrical Work"><button type="button" class="catbtn on" data-cat="Electrical Work">⚡ Electrical Work</button><button type="button" class="catbtn" data-cat="AC Work">❄️ AC Work</button></div>
         <select id="service" name="service"><option>House Wiring</option><option>Electrical Repairing</option><option>DB &amp; MCB Installation</option><option>Panel Work</option><option>Geyser Installation &amp; Repair</option><option>Fan &amp; Appliance Installation</option><option>Lighting Solutions</option><option>CCTV &amp; Wi-Fi Camera</option><option>Other</option></select>
         <textarea id="message" name="message" placeholder="Describe the work you need"></textarea>
     <div class="visitbox"><div class="vt">🏠 Aap ghar par kab available hain?</div><div class="vrow"><div class="vcol"><span>Date</span><input type="date" name="visitDate"></div><div class="vcol"><span>Time</span><input type="time" name="visitTime"></div></div></div>
@@ -420,7 +424,8 @@ document.addEventListener('DOMContentLoaded',function(){
 function sendWhatsApp(e){
  e.preventDefault();
  const f=e.target, g=k=>f.querySelector('[name="'+k+'"]').value;
- const n=g('name'), p=g('phone'), s=g('service'), m0=g('message');
+ const n=g('name'), p=g('phone'), s0=g('service'), m0=g('message'), cat=(f.querySelector('[name="category"]')||{}).value||'Electrical Work';
+ const s=cat+': '+s0; // jaise "AC Work: AC Gas Filling / Leak Repair"
  // Ghar par kab available hain: date + time (message ke andar jata hai, taaki Service Orders mein dikhe)
  const vd=(f.querySelector('[name="visitDate"]')||{}).value||'', vt=(f.querySelector('[name="visitTime"]')||{}).value||'';
  let visit='';
@@ -437,10 +442,32 @@ function sendWhatsApp(e){
    body:JSON.stringify({name:n.trim().slice(0,100),phone:p.trim().slice(0,20),service:s.slice(0,100),message:m.trim().slice(0,1000),source:(location.hostname||'avrok-acs.kesug.com').slice(0,100),lat:userLoc?userLoc.lat:null,lng:userLoc?userLoc.lng:null,accuracy:userLoc?userLoc.acc:null,mapsLink:locLink(userLoc),status:'new',createdAt:{'.sv':'timestamp'}})
   }).catch(function(){});
  }catch(x){}
- const text=`Hello AVROK, I need electrical service.%0AName: ${encodeURIComponent(n)}`+(p.trim()?`%0AMobile: ${encodeURIComponent(p)}`:'')+`%0AService: ${encodeURIComponent(s)}%0AWork: ${encodeURIComponent(m0)}`+(visit?`%0AAvailable at home: ${encodeURIComponent(visit)}`:'')+(userLoc?`%0ALocation: ${encodeURIComponent(locLink(userLoc))}`:`%0ALocation: (customer ne allow nahi ki)`);
+ const text=`Hello AVROK, I need ${cat==='AC Work'?'AC':'electrical'} service.%0AName: ${encodeURIComponent(n)}`+(p.trim()?`%0AMobile: ${encodeURIComponent(p)}`:'')+`%0AType: ${encodeURIComponent(cat)}%0AService: ${encodeURIComponent(s0)}%0AWork: ${encodeURIComponent(m0)}`+(visit?`%0AAvailable at home: ${encodeURIComponent(visit)}`:'')+(userLoc?`%0ALocation: ${encodeURIComponent(locLink(userLoc))}`:`%0ALocation: (customer ne allow nahi ki)`);
  const a=document.createElement('a');a.href='https://wa.me/919155944307?text='+text;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();document.body.removeChild(a);
  f.reset();var pop=document.getElementById('rqm');if(pop&&pop.contains(f))pop.hidden=true;
 }
+</script>
+<script>
+/* Electrical Work / AC Work: category ke hisaab se service ki list badalti hai */
+(function(){
+ var LISTS={
+  'Electrical Work':['House Wiring','Electrical Repairing','DB & MCB Installation','Panel Work','Geyser Installation & Repair','Fan & Appliance Installation','Lighting Solutions','CCTV & Wi-Fi Camera','Other'],
+  'AC Work':['AC Installation (Split / Window)','AC Uninstallation / Shifting','AC General Service','AC Jet Pump Deep Cleaning','AC Gas Filling / Leak Repair','AC Not Cooling Repair','AC Water Leakage Repair','AC PCB / Compressor Repair','AC Noise / Vibration Problem','AC Stabilizer & Wiring','AC AMC (Yearly Maintenance)','Other']
+ };
+ function setCat(form,cat){
+  var hid=form.querySelector('[name="category"]'),sel=form.querySelector('select[name="service"]');
+  if(!hid||!sel||!LISTS[cat])return;
+  hid.value=cat;
+  form.querySelectorAll('.catbtn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-cat')===cat);});
+  sel.innerHTML='';
+  LISTS[cat].forEach(function(t){var o=document.createElement('option');o.textContent=t;sel.appendChild(o);});
+ }
+ document.addEventListener('click',function(e){
+  var b=e.target.closest&&e.target.closest('.catbtn'); if(!b)return;
+  var f=b.closest('form'); if(f)setCat(f,b.getAttribute('data-cat'));
+ });
+ document.addEventListener('reset',function(e){var f=e.target; if(f&&f.querySelector&&f.querySelector('.catbtn')) setTimeout(function(){setCat(f,'Electrical Work');},0);});
+})();
 </script>
 <div id="rqm" class="rqm" hidden><div class="rqc" id="rqc" role="dialog" aria-modal="true" aria-label="Request a Service">
   <div class="rqh">
@@ -452,6 +479,7 @@ function sendWhatsApp(e){
   <form class="form" onsubmit="sendWhatsApp(event)">
     <input name="name" placeholder="Your name" required>
     <input name="phone" type="tel" placeholder="Mobile number (optional)">
+    <div class="cat"><input type="hidden" name="category" value="Electrical Work"><button type="button" class="catbtn on" data-cat="Electrical Work">⚡ Electrical Work</button><button type="button" class="catbtn" data-cat="AC Work">❄️ AC Work</button></div>
     <select name="service"><option>House Wiring</option><option>Electrical Repairing</option><option>DB &amp; MCB Installation</option><option>Panel Work</option><option>Geyser Installation &amp; Repair</option><option>Fan &amp; Appliance Installation</option><option>Lighting Solutions</option><option>CCTV &amp; Wi-Fi Camera</option><option>Other</option></select>
     <textarea name="message" placeholder="Describe the work you need"></textarea>
     <div class="visitbox"><div class="vt">🏠 Aap ghar par kab available hain?</div><div class="vrow"><div class="vcol"><span>Date</span><input type="date" name="visitDate"></div><div class="vcol"><span>Time</span><input type="time" name="visitTime"></div></div></div>
