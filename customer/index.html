@@ -172,6 +172,19 @@ section{padding:84px 0}
 .form label{display:none}
 .form input,.form select,.form textarea{width:100%;padding:14px 16px;border:1.5px solid #d4dbe8;border-radius:12px;font:500 15.5px Inter,sans-serif;color:var(--ink);background:#fafbfd;transition:.15s}
 .form textarea{min-height:120px;resize:vertical}
+select[name="service"]{display:none !important}
+.csel{position:relative}
+.csel-btn{width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;padding:14px 16px;border:1.5px solid #d4dbe8;border-radius:12px;background:#fafbfd;font:500 15.5px Inter,sans-serif;color:var(--ink);cursor:pointer}
+.csel-btn svg{width:18px;height:18px;flex-shrink:0;transition:transform .15s}
+.csel.open .csel-btn{border-color:var(--yellow-d);background:#fff;box-shadow:0 0 0 4px rgba(255,196,0,.25)}
+.csel.open .csel-btn svg{transform:rotate(180deg)}
+.csel-list{display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:1.5px solid #d4dbe8;border-radius:14px;box-shadow:0 14px 34px rgba(10,30,70,.22);max-height:300px;overflow-y:auto;z-index:40;-webkit-overflow-scrolling:touch}
+.csel.open .csel-list{display:block}
+.csel-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;font:500 15.5px Inter,sans-serif;color:var(--ink);border-bottom:1px solid #eef1f6;cursor:pointer}
+.csel-item:last-child{border-bottom:0}
+.csel-item:active{background:#f1f4fa}
+.csel-item.sel{background:#fff8dc;color:var(--navy);font-weight:700}
+.csel-item .ck{color:var(--navy);font-weight:800}
 .cat{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .catbtn{padding:13px 10px;border:1.5px solid #d4dbe8;border-radius:12px;background:#fff;color:var(--navy);font:700 14.5px Inter,sans-serif;cursor:pointer;transition:.15s}
 .catbtn.on{background:var(--navy);color:#fff;border-color:var(--navy);box-shadow:0 4px 12px rgba(10,30,70,.25)}
@@ -461,12 +474,42 @@ function sendWhatsApp(e){
   form.querySelectorAll('.catbtn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-cat')===cat);});
   sel.innerHTML='';
   LISTS[cat].forEach(function(t){var o=document.createElement('option');o.textContent=t;sel.appendChild(o);});
+  sel.selectedIndex=0; if(sel._csRender)sel._csRender();
  }
  document.addEventListener('click',function(e){
   var b=e.target.closest&&e.target.closest('.catbtn'); if(!b)return;
   var f=b.closest('form'); if(f)setCat(f,b.getAttribute('data-cat'));
  });
  document.addEventListener('reset',function(e){var f=e.target; if(f&&f.querySelector&&f.querySelector('.catbtn')) setTimeout(function(){setCat(f,'Electrical Work');},0);});
+})();
+</script>
+<script>
+/* Phone ke native dropdown ki jagah app ka apna dropdown (service list) */
+(function(){
+ function build(sel){
+  if(sel._cs)return; sel._cs=1;
+  var w=document.createElement('div'); w.className='csel';
+  w.innerHTML='<button type="button" class="csel-btn" aria-haspopup="listbox"><span class="csel-val"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="csel-list" role="listbox"></div>';
+  sel.parentNode.insertBefore(w,sel.nextSibling);
+  var btn=w.querySelector('.csel-btn'),val=w.querySelector('.csel-val'),list=w.querySelector('.csel-list');
+  function render(){
+   val.textContent=sel.value||(sel.options[0]&&sel.options[0].text)||'';
+   list.innerHTML='';
+   Array.prototype.forEach.call(sel.options,function(o){
+    var d=document.createElement('div'); d.className='csel-item'+(o.value===sel.value?' sel':''); d.setAttribute('role','option');
+    var s=document.createElement('span'); s.textContent=o.text; d.appendChild(s);
+    if(o.value===sel.value){var c=document.createElement('span'); c.className='ck'; c.textContent='✓'; d.appendChild(c);}
+    d.addEventListener('click',function(e){e.stopPropagation(); sel.value=o.value; w.classList.remove('open'); render(); sel.dispatchEvent(new Event('change',{bubbles:true}));});
+    list.appendChild(d);
+   });
+  }
+  sel._csRender=render; render();
+  btn.addEventListener('click',function(e){e.stopPropagation(); var open=!w.classList.contains('open'); document.querySelectorAll('.csel.open').forEach(function(x){x.classList.remove('open');}); if(open){w.classList.add('open'); var s=list.querySelector('.sel'); if(s&&s.scrollIntoView)try{list.scrollTop=s.offsetTop-list.clientHeight/2+s.offsetHeight/2;}catch(x){}}});
+ }
+ function init(){document.querySelectorAll('select[name="service"]').forEach(build);}
+ document.addEventListener('click',function(){document.querySelectorAll('.csel.open').forEach(function(x){x.classList.remove('open');});});
+ document.addEventListener('reset',function(e){var f=e.target; if(f&&f.querySelectorAll) setTimeout(function(){f.querySelectorAll('select[name="service"]').forEach(function(s){s._csRender&&s._csRender();});},10);});
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
 <div id="rqm" class="rqm" hidden><div class="rqc" id="rqc" role="dialog" aria-modal="true" aria-label="Request a Service">
